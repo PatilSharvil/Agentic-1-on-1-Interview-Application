@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Knowledge Graph</title>
+<style>
+  body { margin: 0; font-family: sans-serif; background: #0b1020; color: #e6e6e6; }
+  h1 { padding: 12px 16px; margin: 0; font-size: 16px; border-bottom: 1px solid #222; }
+  #graph { width: 100vw; height: calc(100vh - 44px); }
+  .node circle { stroke: #fff; stroke-width: 1.5px; }
+  .node text { font-size: 11px; fill: #e6e6e6; pointer-events: none; }
+  .link { stroke-opacity: 0.6; }
+  .link.supports { stroke: #2ecc71; }
+  .link.contradicts { stroke: #e74c3c; }
+  .link.mentions { stroke: #95a5a6; }
+  .link.related { stroke: #3498db; }
+  .legend { position: fixed; top: 52px; right: 12px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-size: 12px; }
+  .legend div { margin: 2px 0; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+</style>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+<h1>Knowledge Graph — Room __ROOM_CODE__</h1>
+<div id="graph"></div>
+<div class="legend">
+  <div><span class="dot" style="background:#3498db"></span>skill</div>
+  <div><span class="dot" style="background:#9b59b6"></span>topic</div>
+  <div><span class="dot" style="background:#e67e22"></span>claim</div>
+  <div><span class="dot" style="background:#1abc9c"></span>entity</div>
+  <div style="margin-top:6px;border-top:1px solid #444;padding-top:4px">
+    <div><span style="color:#2ecc71">━</span> supports</div>
+    <div><span style="color:#e74c3c">━</span> contradicts</div>
+    <div><span style="color:#95a5a6">━</span> mentions</div>
+    <div><span style="color:#3498db">━</span> related</div>
+  </div>
+</div>
+<script>
+const ROOM = "__ROOM_CODE__";
+const NODE_COLOR = { skill: "#f39c12", topic: "#9b59b6", claim: "#e74c3c", entity: "#2ecc71" };
+
+const width = window.innerWidth;
+const height = window.innerHeight - 44;
+const svg = d3.select("#graph").append("svg").attr("width", width).attr("height", height);
+const g = svg.append("g");
+const zoom = d3.zoom().on("zoom", (e) => g.attr("transform", e.transform));
+svg.call(zoom);
+
+let simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(80))
+  .force("charge", d3.forceManyBody().strength(-200))
+  .force("center", d3.forceCenter(width / 2, height / 2));
+
+let linkSel, nodeSel;
+let nodes = [], links = [];
+
+function render() {
+  linkSel = g.selectAll(".link").data(links, d => d.source.id + "-" + d.target.id + "-" + d.relation);
+  linkSel.exit().remove();
+  const linkEnter = linkSel.enter().append("line").attr("class", d => "link " + d.relation);
+  linkSel = linkEnter.merge(linkSel).attr("stroke-width", d => Math.max(1, (d.weight || 1) * 2));
+
+  nodeSel = g.selectAll(".node").data(nodes, d => d.id);
+  nodeSel.exit().remove();
+  const nodeEnter = nodeSel.enter().append("g").attr("class", "node")
+    .call(d3.drag().on("start", dragStart).on("drag", dragging).on("end", dragEnd));
+  nodeEnter.append("circle").attr("r", 8).attr("fill", d => NODE_COLOR[d.type] || "#999");
+  nodeEnter.append("text").attr("dx", 12).attr("dy", 4).text(d => d.label);
+  nodeSel = nodeEnter.merge(nodeSel);
+
+  simulation.nodes(nodes);
+  simulation.force("link").links(links);
+  simulation.alpha(1).restart();
+  simulation.on("tick", () => {
+    linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function dragStart(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+function dragging(e, d) { d.fx = e.x; d.fy = e.y; }
+function dragEnd(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+function applyGraph(g) {
+  nodes = (g.nodes || []).map(n => ({ ...n }));
+  links = (g.edges || []).map(e => ({ source: e.source, target: e.target, relation: e.relation, weight: e.weight }));
+  render();
+}
+
+// fetch initial
+fetch("/api/rooms/" + ROOM + "/graph").then(r => r.json()).then(applyGraph).catch(e => console.error(e));
+
+// real-time via WebSocket
+const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+const ws = new WebSocket(wsProto + "//" + window.location.host + "/ws/" + ROOM + "?name=graph-viewer");
+ws.onmessage = (ev) => {
+  try {
+    const data = JSON.parse(ev.data);
+    if (data.type === "graph-update") {
+      applyGraph({ nodes: data.nodes, edges: data.edges });
+    }
+  } catch (e) { console.error(e); }
+};
+ws.onopen = () => console.log("ws connected");
+</script>
+</body>
+</html>
