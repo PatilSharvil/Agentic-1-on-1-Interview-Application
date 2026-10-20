@@ -104,7 +104,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     let maxAmp = 0
     for (let i = 0; i < samples.length; i++) maxAmp = Math.max(maxAmp, Math.abs(samples[i]))
     console.log('audio max amplitude:', maxAmp.toFixed(4))
-    if (maxAmp < 0.01) { console.log('silence, skipping'); chunksRef.current = []; return }
+    if (maxAmp < 0.02) { console.log('silence, skipping'); chunksRef.current = []; return }
     const wav = encodeWav(samples, audioCtxRef.current?.sampleRate || 16000)
     const buf = new Uint8Array(wav)
     let bin = ''

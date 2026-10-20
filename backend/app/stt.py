@@ -112,15 +112,28 @@ _HALLUCINATIONS = {
     "you",
     ".",
     "",
+    "thank you",
+    "thanks",
+    "bye",
+    "goodbye",
 }
 
 def _is_hallucination(text: str) -> bool:
-    t = text.strip().lower().rstrip(".!,")
-    if t in _HALLUCINATIONS:
+    t = text.strip()
+    if not t:
         return True
-    # repeated same phrase
-    words = t.split()
+    # non-English: any non-ASCII character means it's not English
+    if any(ord(c) > 127 for c in t):
+        return True
+    low = t.lower().rstrip(".!,?;:")
+    if low in _HALLUCINATIONS:
+        return True
+    # repeated same phrase (3+ words repeated)
+    words = low.split()
     if len(words) >= 4 and len(set(words)) <= 2:
+        return True
+    # single very short transcript (likely noise)
+    if len(words) <= 1 and len(t) < 4:
         return True
     return False
 
