@@ -153,7 +153,8 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
         }
       }
 
-      const ws = new WebSocket(`ws://${location.host}/ws/${code}?name=${encodeURIComponent(name)}`)
+      const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const ws = new WebSocket(`${wsProto}//${location.host}/ws/${code}?name=${encodeURIComponent(name)}`)
       wsRef.current = ws
       ws.onopen = () => setStatus('connected')
       ws.onmessage = async (ev) => {
