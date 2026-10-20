@@ -10,6 +10,17 @@ set "BIN=%ROOT%bin"
 set "BACKEND=%ROOT%backend"
 set "FRONTEND=%ROOT%frontend"
 
+:: Ensure cloudflared is installed
+if not exist "%BIN%\cloudflared.exe" (
+    echo Cloudflared not found. Running installer...
+    call "%ROOT%install-cloudflared.bat"
+    if not exist "%BIN%\cloudflared.exe" (
+        echo ERROR: Cloudflared installation failed. Cannot continue.
+        pause
+        exit /b 1
+    )
+)
+
 :: Free ports 8000 and 5173
 echo [1/4] Freeing ports 8000 and 5173...
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000') do taskkill /PID %%a /F >nul 2>&1
