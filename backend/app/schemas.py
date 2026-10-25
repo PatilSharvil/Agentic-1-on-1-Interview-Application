@@ -60,6 +60,8 @@ class ResumeOut(BaseModel):
     filename: str
     text_preview: str
     parsed_at: datetime
+    graph_built: bool = False
+    skills: list[str] = []
 
 
 class QuestionOut(BaseModel):

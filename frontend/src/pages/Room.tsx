@@ -1,9 +1,73 @@
 import { useState, useRef, useEffect } from 'react'
 import Copilot from '../components/Copilot'
 
-const WORKLET_CODE = `class RecorderProcessor extends AudioWorkletProcessor {
-  constructor() { super(); this.buf = []; this.port.onmessage = (e) => { if (e.data === 'flush') { this.port.postMessage({ type: 'data', chunks: this.buf }); this.buf = []; } }; }
-  process(inputs) { const input = inputs[0]; if (input && input[0]) this.buf.push(new Float32Array(input[0])); return true; }
+const WORKLET_CODE = `
+class RecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.sr = sampleRate
+    this.frameMs = (128 / sampleRate) * 1000
+    this.preRollMax = Math.max(8, Math.round(0.28 * sampleRate / 128))
+    this.preRoll = []
+    this.buf = []
+    this.inSpeech = false
+    this.silenceMs = 0
+    this.speechMs = 0
+    this.noise = 0.0025
+    this.port.onmessage = (e) => { if (e.data === 'flush') this.emit(true) }
+  }
+  rms(frame) {
+    let sum = 0
+    for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i]
+    return Math.sqrt(sum / frame.length)
+  }
+  process(inputs) {
+    const input = inputs[0]
+    const ch = input && input[0]
+    if (!ch) return true
+    const frame = new Float32Array(ch)
+    const rms = this.rms(frame)
+    if (!this.inSpeech) {
+      // Track the room's noise floor slowly, and only while nobody is talking.
+      this.noise = this.noise * 0.97 + Math.min(rms, this.noise * 3) * 0.03
+    }
+    const threshold = Math.max(0.007, this.noise * 2.9)
+    const voiced = rms > threshold
+
+    if (voiced) {
+      if (!this.inSpeech) {
+        this.inSpeech = true
+        this.buf = this.preRoll.slice()
+        this.preRoll = []
+        this.speechMs = 0
+      }
+      this.silenceMs = 0
+      this.speechMs += this.frameMs
+      this.buf.push(frame)
+    } else if (this.inSpeech) {
+      this.buf.push(frame)
+      this.silenceMs += this.frameMs
+      // End the utterance only on a real pause, so words are never cut in half.
+      if ((this.silenceMs >= 480 && this.speechMs >= 320) || this.buf.length * this.frameMs >= 11000) {
+        this.emit(false)
+      }
+    } else {
+      this.preRoll.push(frame)
+      if (this.preRoll.length > this.preRollMax) this.preRoll.shift()
+    }
+    return true
+  }
+  emit(force) {
+    if (!this.buf.length) return
+    const chunks = this.buf
+    const speechMs = this.speechMs
+    this.buf = []
+    this.inSpeech = false
+    this.silenceMs = 0
+    this.speechMs = 0
+    if (speechMs < 280 && !force) return
+    this.port.postMessage({ type: 'chunk', chunks, sampleRate: this.sr, speechMs })
+  }
 }
 registerProcessor('recorder-processor', RecorderProcessor);`
 
@@ -40,6 +104,44 @@ function float32Concat(chunks: Float32Array[]): Float32Array {
   return out
 }
 
+async function resampleTo16k(samples: Float32Array, fromRate: number): Promise<Float32Array> {
+  if (fromRate === 16000) return samples
+  const length = Math.max(1, Math.round(samples.length * 16000 / fromRate))
+  try {
+    const off = new OfflineAudioContext(1, length, 16000)
+    const buffer = off.createBuffer(1, samples.length, fromRate)
+    buffer.getChannelData(0).set(samples)
+    const src = off.createBufferSource()
+    src.buffer = buffer
+    src.connect(off.destination)
+    src.start()
+    const rendered = await off.startRendering()
+    return rendered.getChannelData(0)
+  } catch {
+    // Fallback: linear interpolation
+    const ratio = fromRate / 16000
+    const out = new Float32Array(length)
+    for (let i = 0; i < length; i++) {
+      const pos = i * ratio
+      const i0 = Math.floor(pos)
+      const i1 = Math.min(i0 + 1, samples.length - 1)
+      const frac = pos - i0
+      out[i] = samples[i0] * (1 - frac) + samples[i1] * frac
+    }
+    return out
+  }
+}
+
+function b64FromBytes(bytes: Uint8Array): string {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)))
+  }
+  return btoa(bin)
+}
+
+type SttStatus = { status: string; reason?: string; latency_ms?: number }
+
 export default function Room({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
   const localVideo = useRef<HTMLVideoElement>(null)
   const remoteVideo = useRef<HTMLVideoElement>(null)
@@ -49,24 +151,40 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
   const audioCtxRef = useRef<AudioContext | null>(null)
   const workletNodeRef = useRef<AudioWorkletNode | null>(null)
   const chunksRef = useRef<Float32Array[]>([])
-  // (sample rate is fixed at 16000 in AudioContext)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const captureEpochRef = useRef<number>(0)
+  const seqRef = useRef(0)
+  const roleRef = useRef('guest')
+  const sendQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const transcriptEndRef = useRef<HTMLDivElement>(null)
+  const seenTranscriptIds = useRef<Set<string>>(new Set())
 
   const [status, setStatus] = useState('connecting...')
-  const [chat, setChat] = useState<{ sender: string; body: string }[]>([])
+  const [chat, setChat] = useState<{ id?: string; sender: string; body: string }[]>([])
   const [msg, setMsg] = useState('')
-  const [transcripts, setTranscripts] = useState<{ speaker: string; text: string }[]>([])
+  const [transcripts, setTranscripts] = useState<{ id?: string; speaker: string; text: string }[]>([])
   const [muted, setMuted] = useState(false)
   const [camOff, setCamOff] = useState(false)
   const [webSpeechOn, setWebSpeechOn] = useState(false)
   const [recording, setRecording] = useState(false)
   const [role, setRole] = useState<string>('guest')
+  const [sttStatus, setSttStatus] = useState<SttStatus | null>(null)
+  const [modelInfo, setModelInfo] = useState('')
+
+  useEffect(() => { roleRef.current = role }, [role])
+  useEffect(() => { transcriptEndRef.current?.scrollIntoView({ block: 'end' }) }, [transcripts])
 
   async function startAudioCapture() {
-    if (audioCtxRef.current) { console.log('audio capture already running'); return }
+    if (audioCtxRef.current) return
+    // Recording can be resumed (from the room snapshot) before the main
+    // effect has finished getUserMedia after a reload — wait, don't bail.
+    for (let i = 0; i < 12; i++) {
+      if (localStream.current?.getAudioTracks().length) break
+      await new Promise((r) => setTimeout(r, 500))
+    }
     const stream = localStream.current
     if (!stream || stream.getAudioTracks().length === 0) { console.error('no audio track'); return }
-    const ctx = new AudioContext({ sampleRate: 16000 })
+    const ctx = new AudioContext()
     const source = ctx.createMediaStreamSource(stream)
     const blob = new Blob([WORKLET_CODE], { type: 'application/javascript' })
     const url = URL.createObjectURL(blob)
@@ -74,17 +192,24 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     URL.revokeObjectURL(url)
     const node = new AudioWorkletNode(ctx, 'recorder-processor')
     node.port.onmessage = (e) => {
-      if (e.data?.type === 'data' && Array.isArray(e.data.chunks)) {
-        for (const c of e.data.chunks) chunksRef.current.push(new Float32Array(c))
+      const data = e.data
+      if (data?.type === 'chunk' && Array.isArray(data.chunks)) {
+        void queueChunk(data.chunks, data.sampleRate, data.speechMs)
       }
     }
     source.connect(node)
+    // Some browsers suspend a worklet that has no destination connection.
+    const mute = ctx.createGain()
+    mute.gain.value = 0
+    node.connect(mute).connect(ctx.destination)
     audioCtxRef.current = ctx
     workletNodeRef.current = node
-    console.log('audio capture started, sampleRate', ctx.sampleRate)
+    captureEpochRef.current = Date.now()
+    console.log('audio capture started at', ctx.sampleRate, 'Hz (worklet VAD)')
   }
 
   function stopAudioCapture() {
+    try { workletNodeRef.current?.port.postMessage('flush') } catch {}
     workletNodeRef.current?.disconnect()
     workletNodeRef.current = null
     audioCtxRef.current?.close()
@@ -92,40 +217,78 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     chunksRef.current = []
   }
 
-  async function flushAudio() {
-    const node = workletNodeRef.current
-    if (!node) { console.error('no worklet node'); return }
-    if (wsRef.current?.readyState !== WebSocket.OPEN) { console.warn('ws not open, skipping flush'); chunksRef.current = []; return }
-    node.port.postMessage('flush')
-    await new Promise((r) => setTimeout(r, 100))
-    const samples = float32Concat(chunksRef.current)
-    chunksRef.current = []
-    if (samples.length < 1600) { console.log('too few samples:', samples.length); return }
-    let maxAmp = 0
-    for (let i = 0; i < samples.length; i++) maxAmp = Math.max(maxAmp, Math.abs(samples[i]))
-    console.log('audio max amplitude:', maxAmp.toFixed(4))
-    if (maxAmp < 0.02) { console.log('silence, skipping'); chunksRef.current = []; return }
-    const wav = encodeWav(samples, audioCtxRef.current?.sampleRate || 16000)
-    const buf = new Uint8Array(wav)
-    let bin = ''
-    for (let i = 0; i < buf.length; i += 0x8000) {
-      bin += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + 0x8000)))
+  function queueChunk(chunks: Float32Array[], sampleRate: number, speechMs: number) {
+    sendQueueRef.current = sendQueueRef.current
+      .then(() => sendChunk(chunks, sampleRate, speechMs))
+      .catch((e) => console.error('send chunk failed', e))
+  }
+
+  function openWs(): WebSocket | null {
+    const ws = wsRef.current
+    return ws && ws.readyState === WebSocket.OPEN ? ws : null
+  }
+
+  async function sendChunk(chunks: Float32Array[], sampleRate: number, speechMs: number) {
+    if (!openWs()) {
+      // Mid-reconnect: wait briefly for the socket to come back so speech is
+      // not silently lost, then give up on this chunk if the link stays down.
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 500))
+        if (openWs()) break
+      }
+      if (!openWs()) {
+        console.warn('audio chunk dropped: socket still closed')
+        return
+      }
     }
+    let samples = float32Concat(chunks)
+    if (samples.length < 800) return
+
+    let maxAmp = 0, sumSq = 0
+    for (let i = 0; i < samples.length; i++) {
+      const a = Math.abs(samples[i])
+      if (a > maxAmp) maxAmp = a
+      sumSq += samples[i] * samples[i]
+    }
+    const rms = Math.sqrt(sumSq / samples.length)
+    // Cheap client-side gate; the server re-checks with a proper VAD.
+    if (maxAmp < 0.004 || rms < 0.0012) return
+
+    samples = await resampleTo16k(samples, sampleRate)
+    const wav = encodeWav(samples, 16000)
+    const bytes = new Uint8Array(wav)
+    const durationMs = Math.round(samples.length / 16)
+    const endMs = Date.now() - captureEpochRef.current
+    const startMs = Math.max(0, endMs - durationMs)
+    const seq = seqRef.current++
+    const speaker = roleRef.current === 'host' ? 'Interviewer' : 'Candidate'
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'audio-chunk', audio: btoa(bin), suffix: '.wav', speaker: role === 'host' ? 'Interviewer' : 'Candidate' }))
-      console.log('sent wav chunk, samples:', samples.length, 'bytes:', wav.byteLength)
-    } else {
-      console.warn('ws closed before send')
+      wsRef.current.send(JSON.stringify({
+        type: 'audio-chunk',
+        audio: b64FromBytes(bytes),
+        suffix: '.wav',
+        speaker,
+        seq,
+        start_ms: startMs,
+        end_ms: endMs,
+        speech_ms: speechMs,
+      }))
+      console.log(`sent ${durationMs}ms chunk (seq ${seq}), ${wav.byteLength} bytes`)
     }
   }
 
-  // Start/stop recording controls audio capture + 5s chunk interval
   useEffect(() => {
     if (recording) {
-      startAudioCapture().then(() => {
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        intervalRef.current = setInterval(() => { flushAudio() }, 5000)
+      startAudioCapture().catch((e) => {
+        console.error('capture failed', e)
+        setStatus('microphone unavailable')
       })
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      // Safety net: force a flush if a worklet event is ever lost.
+      intervalRef.current = setInterval(() => {
+        try { workletNodeRef.current?.port.postMessage('flush') } catch {}
+      }, 20000)
     } else {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
       stopAudioCapture()
@@ -137,8 +300,14 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
 
   useEffect(() => {
     let cancelled = false
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+
     async function start() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      })
       if (cancelled) return
       localStream.current = stream
       if (localVideo.current) localVideo.current.srcObject = stream
@@ -153,58 +322,174 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
         }
       }
 
-      const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const ws = new WebSocket(`${wsProto}//${location.host}/ws/${code}?name=${encodeURIComponent(name)}`)
-      wsRef.current = ws
-      ws.onopen = () => setStatus('connected')
-      ws.onmessage = async (ev) => {
-        const data = JSON.parse(ev.data)
-        switch (data.type) {
-          case 'joined':
-            if (data.role) setRole(data.role)
-            break
-          case 'start-recording':
-            setRecording(true)
-            break
-          case 'stop-recording':
-            setRecording(false)
-            break
-          case 'join':
-            if (pc.signalingState === 'stable') {
-              const offer = await pc.createOffer()
-              await pc.setLocalDescription(offer)
-              ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }))
+      const send = (payload: unknown) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(payload))
+      }
+
+      async function offerPeer() {
+        const p = pcRef.current
+        if (!p) return
+        // A stale offer/answer left over from a killed connection must never
+        // block renegotiation — this was the "room stops working after a
+        // refresh" bug; roll it back, then start a fresh negotiation.
+        if (p.signalingState !== 'stable') {
+          await p.setLocalDescription({ type: 'rollback' } as unknown as RTCLocalSessionDescriptionInit)
+        }
+        // iceRestart makes the ICE layer re-route to the partner's NEW page.
+        const offer = await p.createOffer({ iceRestart: true })
+        await p.setLocalDescription(offer)
+        send({ type: 'offer', sdp: p.localDescription })
+      }
+
+      function attach(ws: WebSocket, attempt: number) {
+        wsRef.current = ws
+        ws.onopen = () => setStatus('connected')
+        const mergeTranscripts = (incoming: { id?: string; speaker: string; text: string }[]) => {
+          setTranscripts((prev) => {
+            const known = new Set(prev.map((t) => t.id))
+            const fresh = incoming.filter((t) => !t.id || !known.has(t.id))
+            if (!fresh.length) return prev
+            for (const t of fresh) seenTranscriptIds.current.add(String(t.id ?? t.text))
+            return [...prev, ...fresh]
+          })
+        }
+        ws.onmessage = async (ev) => {
+          const data = JSON.parse(ev.data)
+          try {
+            switch (data.type) {
+              case 'joined': {
+                if (data.role) setRole(data.role)
+                if (data.stt) setModelInfo(`${data.stt.model} → ${data.stt.fallback}`)
+                // Room state snapshot: recording flag survives a refresh.
+                if (typeof data.recording === 'boolean') setRecording(data.recording)
+                const others = (data.participants || []).filter((p: any) => p.name !== name)
+                // Hydrate transcript + chat history so a reloaded client
+                // continues exactly where the meeting left off.
+                try {
+                  const [tRes, cRes] = await Promise.all([
+                    fetch(`/api/rooms/${code}/transcript`),
+                    fetch(`/api/rooms/${code}/chat`),
+                  ])
+                  if (tRes.ok) {
+                    const rows = await tRes.json()
+                    mergeTranscripts(rows.map((r: any) => ({ id: r.id, speaker: r.speaker, text: r.text })))
+                  }
+                  if (cRes.ok) {
+                    const rows = await cRes.json()
+                    setChat((prev) => {
+                      const fresh = rows.filter((r: any) => !prev.some((c) => c.id === r.id))
+                      return fresh.length
+                        ? [...prev, ...fresh.map((r: any) => ({ id: r.id, sender: r.sender, body: r.body }))]
+                        : prev
+                    })
+                  }
+                } catch {}
+                // The peer usually offers first (it received our 'join').
+                // Fallback: if nothing was negotiated shortly after, offer
+                // ourselves — rescues reloads when that broadcast got lost.
+                if (others.length > 0) {
+                  if (fallbackTimer) clearTimeout(fallbackTimer)
+                  fallbackTimer = setTimeout(() => {
+                    const p = pcRef.current
+                    if (
+                      p && !cancelled &&
+                      p.signalingState === 'stable' && !p.currentRemoteDescription
+                    ) {
+                      offerPeer().catch((e) => console.error('fallback offer failed', e))
+                    }
+                  }, 2500)
+                }
+                break
+              }
+              case 'start-recording':
+                setRecording(true)
+                break
+              case 'stop-recording':
+                setRecording(false)
+                break
+              case 'stt-status':
+                setSttStatus(data)
+                break
+              case 'join':
+                // The partner (re)joined — reconnect our status and restart
+                // the connection with a fresh offer even if our pc still
+                // remembers a half-completed negotiation.
+                setStatus('connected')
+                await offerPeer()
+                break
+              case 'offer': {
+                const p = pcRef.current
+                if (!p) break
+                if (p.signalingState === 'have-local-offer') {
+                  // Simultaneous offers: yield ours and answer theirs.
+                  await p.setLocalDescription({ type: 'rollback' } as unknown as RTCLocalSessionDescriptionInit)
+                }
+                if (p.signalingState === 'stable' || p.signalingState === 'have-remote-offer') {
+                  await p.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                  const answer = await p.createAnswer()
+                  await p.setLocalDescription(answer)
+                  send({ type: 'answer', sdp: p.localDescription })
+                }
+                break
+              }
+              case 'answer': {
+                const p = pcRef.current
+                if (!p) break
+                if (p.signalingState === 'have-local-offer') {
+                  await p.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                }
+                break
+              }
+              case 'ice-candidate':
+                try { await pcRef.current?.addIceCandidate(data.candidate) } catch {}
+                break
+              case 'transcript': {
+                const key = String(data.id ?? '')
+                if (key && seenTranscriptIds.current.has(key)) break
+                if (key) seenTranscriptIds.current.add(key)
+                mergeTranscripts([{ id: data.id, speaker: data.speaker, text: data.text }])
+                break
+              }
+              case 'leave':
+                // Ignore our own stale leave (fired by the old socket after a
+                // reload); only a *different* person leaving is meaningful.
+                if (data.name && data.name !== name) setStatus('peer left')
+                break
             }
-            break
-          case 'offer':
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp))
-            const answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
-            ws.send(JSON.stringify({ type: 'answer', sdp: pc.localDescription }))
-            break
-          case 'answer':
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp))
-            break
-          case 'ice-candidate':
-            try { await pc.addIceCandidate(data.candidate) } catch {}
-            break
-          case 'chat':
-            setChat(c => [...c, { sender: data.sender, body: data.body }])
-            break
-          case 'transcript':
-            setTranscripts(t => [...t, { speaker: data.speaker, text: data.text }])
-            break
-          case 'leave':
-            setStatus('peer left')
-            break
+          } catch (e) {
+            console.error('ws message handler error', e)
+          }
+        }
+        ws.onclose = () => {
+          setStatus('disconnected')
+          // Lightweight auto-reconnect: the WebRTC media channel survives the
+          // socket drop; this restores live updates and (via the backend's
+          // fresh 'join' broadcast) triggers renegotiation to the new page.
+          if (!cancelled && attempt < 5) {
+            retryTimer = setTimeout(() => { if (!cancelled) connect(attempt + 1) }, 1500 * (attempt + 1))
+          }
         }
       }
-      ws.onclose = () => setStatus('disconnected')
+
+      function connect(attempt: number) {
+        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        try {
+          const ws = new WebSocket(`${wsProto}//${location.host}/ws/${code}?name=${encodeURIComponent(name)}`)
+          attach(ws, attempt)
+        } catch (e) {
+          console.error('ws connect failed', e)
+          if (!cancelled && attempt < 5) {
+            retryTimer = setTimeout(() => { if (!cancelled) connect(attempt + 1) }, 1500 * (attempt + 1))
+          }
+        }
+      }
+      connect(0)
     }
-    start()
+    start().catch((e) => { console.error(e); setStatus('could not access camera/microphone') })
     return () => {
       cancelled = true
-      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      if (retryTimer) clearTimeout(retryTimer)
       stopAudioCapture()
       pcRef.current?.close()
       wsRef.current?.close()
@@ -212,7 +497,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     }
   }, [code, name])
 
-  // Web Speech API: free, real-time, browser-native STT (fallback)
+  // Web Speech API: free, real-time, browser-native STT (fallback only).
   useEffect(() => {
     if (!webSpeechOn) return
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -226,7 +511,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
         if (e.results[i].isFinal) {
           const text = e.results[i][0].transcript.trim()
           if (text && wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'transcript', speaker: role === 'host' ? 'Interviewer' : 'Candidate', text }))
+            wsRef.current.send(JSON.stringify({ type: 'transcript', speaker: roleRef.current === 'host' ? 'Interviewer' : 'Candidate', text }))
           }
         }
       }
@@ -238,12 +523,14 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
   }, [webSpeechOn, name])
 
   function toggleMute() {
-    localStream.current?.getAudioTracks().forEach(t => (t.enabled = muted))
-    setMuted(!muted)
+    const next = !muted
+    localStream.current?.getAudioTracks().forEach(t => (t.enabled = !next))
+    setMuted(next)
   }
   function toggleCam() {
-    localStream.current?.getVideoTracks().forEach(t => (t.enabled = camOff))
-    setCamOff(!camOff)
+    const next = !camOff
+    localStream.current?.getVideoTracks().forEach(t => (t.enabled = !next))
+    setCamOff(next)
   }
   function toggleWebSpeech() {
     setWebSpeechOn((v) => !v)
@@ -269,14 +556,21 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     try {
       const res = await fetch('/test.wav')
       const buf = new Uint8Array(await res.arrayBuffer())
-      let bin = ''
-      for (let i = 0; i < buf.length; i += 0x8000) {
-        bin += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + 0x8000)))
-      }
-      wsRef.current?.send(JSON.stringify({ type: 'audio-chunk', audio: btoa(bin), suffix: '.wav', speaker: role === 'host' ? 'Interviewer' : 'Candidate' }))
+      wsRef.current?.send(JSON.stringify({
+        type: 'audio-chunk',
+        audio: b64FromBytes(buf),
+        suffix: '.wav',
+        speaker: roleRef.current === 'host' ? 'Interviewer' : 'Candidate',
+        seq: seqRef.current++,
+      }))
       console.log('test wav sent', buf.length)
     } catch (e) { console.error('test wav failed', e) }
   }
+
+  const statusColor = sttStatus?.status === 'ok' ? '#2ecc71'
+    : sttStatus?.status === 'no_speech' ? '#888'
+    : sttStatus?.status === 'hallucination' ? '#e67e22'
+    : sttStatus?.status === 'error' ? '#e74c3c' : '#888'
 
   return (
     <div style={{ display: 'flex', fontFamily: 'sans-serif' }}>
@@ -303,17 +597,26 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
                 wsRef.current.send(JSON.stringify({ type: next ? 'start-recording' : 'stop-recording' }))
               }
             }}>{recording ? 'Stop recording' : 'Start recording'}</button>
-            <button onClick={flushAudio}>Send audio now</button>
+            <button onClick={() => { try { workletNodeRef.current?.port.postMessage('flush') } catch {} }}>Send audio now</button>
             <button onClick={testSttWav}>Test STT (wav)</button>
             <button onClick={toggleWebSpeech}>{webSpeechOn ? 'Stop browser STT' : 'Start browser STT'}</button>
           </>
+        )}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+        {modelInfo && <span>STT: {modelInfo} · </span>}
+        {sttStatus && (
+          <span style={{ color: statusColor }}>
+            {sttStatus.status}{sttStatus.reason ? ` (${sttStatus.reason})` : ''}
+            {typeof sttStatus.latency_ms === 'number' ? ` · ${sttStatus.latency_ms}ms` : ''}
+          </span>
         )}
       </div>
       <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
         <div style={{ flex: 1 }}>
           <h3>Chat</h3>
           <div style={{ height: 160, overflow: 'auto', border: '1px solid #ccc', padding: 8 }}>
-            {chat.map((c, i) => <div key={i}><b>{c.sender}:</b> {c.body}</div>)}
+            {chat.map((c, i) => <div key={c.id || i}><b>{c.sender}:</b> {c.body}</div>)}
           </div>
           <div style={{ display: 'flex', marginTop: 4 }}>
             <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} style={{ flex: 1 }} />
@@ -323,7 +626,8 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
         <div style={{ flex: 1 }}>
           <h3>Transcript (STT)</h3>
           <div style={{ height: 160, overflow: 'auto', border: '1px solid #ccc', padding: 8 }}>
-            {transcripts.map((t, i) => <div key={i}><b>{t.speaker}:</b> {t.text}</div>)}
+            {transcripts.map((t, i) => <div key={t.id || i}><b>{t.speaker}:</b> {t.text}</div>)}
+            <div ref={transcriptEndRef} />
           </div>
         </div>
       </div>

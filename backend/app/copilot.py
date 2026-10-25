@@ -1,15 +1,24 @@
 import io
 import json
+import re
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.models import GraphEdge, GraphNode, Question, Resume, Room
-from app.openrouter import chat, chat_json
+from app.graph_builder import summarise_for_questions
+from app.graph_service import _read_graph, rebuild_graph as rebuild_room_graph
+from app.llm import chat_json
+from app.models import Question, Resume, Room, Transcript
 from app.rooms import get_room
-from app.schemas import GraphOut, GraphNodeOut, GraphEdgeOut, QuestionGenerateRequest, QuestionOut, NextQuestionRequest, ResumeOut
+from app.schemas import (
+    GraphOut,
+    NextQuestionRequest,
+    QuestionGenerateRequest,
+    QuestionOut,
+    ResumeOut,
+)
 
 router = APIRouter(prefix="/api/rooms", tags=["copilot"])
 
@@ -22,11 +31,22 @@ async def _get_room_or_404(db: AsyncSession, code: str) -> Room:
 
 
 def _extract_text(filename: str, content: bytes) -> str:
-    if filename.lower().endswith(".pdf"):
+    name = (filename or "").lower()
+    if name.endswith(".pdf"):
         try:
             from pdfminer.high_level import extract_text as pdf_extract
 
-            return pdf_extract(io.BytesIO(content)) or ""
+            text = pdf_extract(io.BytesIO(content)) or ""
+            return re.sub(r"[ \t]+", " ", text)
+        except Exception as e:
+            print(f"[resume] pdf extraction failed: {e}")
+            return ""
+    if name.endswith(".docx"):
+        try:
+            import docx  # type: ignore
+
+            document = docx.Document(io.BytesIO(content))
+            return "\n".join(p.text for p in document.paragraphs)
         except Exception:
             return ""
     try:
@@ -42,220 +62,356 @@ async def upload_resume(code: str, file: UploadFile = File(...), db: AsyncSessio
     content = await file.read()
     text = _extract_text(file.filename or "resume.txt", content)
     if not text.strip():
-        raise HTTPException(400, "could not extract text from file")
-    from app.models import Resume as ResumeModel
+        raise HTTPException(400, "could not extract text from file (try PDF, DOCX, TXT or MD)")
 
-    r = ResumeModel(room_id=room.id, filename=file.filename or "resume", text=text)
+    r = Resume(room_id=room.id, filename=file.filename or "resume", text=text)
     db.add(r)
     await db.commit()
     await db.refresh(r)
-    return ResumeOut(id=r.id, filename=r.filename, text_preview=text[:500], parsed_at=r.parsed_at)
+
+    # The first graph is resume-only, so build it immediately (fast, no LLM).
+    graph_built = False
+    try:
+        graph = await rebuild_room_graph(db, room, use_llm=False, force=True)
+        graph_built = bool(graph["nodes"])
+        print(f"[resume] room {code}: graph seeded with {len(graph['nodes'])} nodes")
+    except Exception as e:  # noqa: BLE001
+        print(f"[resume] initial graph build failed: {e}")
+
+    return ResumeOut(
+        id=r.id,
+        filename=r.filename,
+        text_preview=text[:500],
+        parsed_at=r.parsed_at,
+        graph_built=graph_built,
+        skills=summarise_for_questions(text)["skills"][:15],
+    )
 
 
 @router.get("/{code}/resume", response_model=ResumeOut)
 async def get_resume(code: str, db: AsyncSession = Depends(get_db)):
     room = await _get_room_or_404(db, code)
-    from app.models import Resume as ResumeModel
-
-    r = await db.scalar(select(ResumeModel).where(ResumeModel.room_id == room.id).order_by(ResumeModel.parsed_at.desc()))
+    r = await db.scalar(
+        select(Resume).where(Resume.room_id == room.id).order_by(Resume.parsed_at.desc())
+    )
     if not r:
         raise HTTPException(404, "no resume uploaded")
-    return ResumeOut(id=r.id, filename=r.filename, text_preview=r.text[:500], parsed_at=r.parsed_at)
+    summary = summarise_for_questions(r.text)
+    return ResumeOut(
+        id=r.id,
+        filename=r.filename,
+        text_preview=r.text[:500],
+        parsed_at=r.parsed_at,
+        graph_built=True,
+        skills=summary["skills"][:15],
+    )
 
 
 # ---------- Questions ----------
+def _qkey(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+_GENERIC_QUESTIONS = [
+    "Walk me through the most technically challenging project on your resume. What trade-offs did you make?",
+    "Tell me about a production incident you owned. How did you find the root cause and what changed afterwards?",
+    "How do you decide between adding a new service and extending an existing one?",
+    "Describe a time you disagreed with a teammate on a technical decision. How did you resolve it?",
+]
+
+
+def _deterministic_questions(summary: dict, count: int) -> list[str]:
+    skills = [s for s in summary.get("skills", []) if s]
+    projects = [p for p in summary.get("projects", []) if p]
+    companies = [c for c in summary.get("companies", []) if c]
+    out: list[str] = []
+
+    def add(q: str) -> None:
+        q = _valid_question(q)
+        if q and _qkey(q) not in {_qkey(x) for x in out}:
+            out.append(q)
+
+    for i in range(0, min(len(skills), count * 2), 2):
+        pair = skills[i : i + 2]
+        if len(pair) == 2:
+            add(
+                f"Your resume lists {pair[0]} and {pair[1]}. Describe a system where you used both, "
+                f"including the data flow, failure modes, and how you tested it?"
+            )
+        else:
+            add(
+                f"You listed {pair[0]} on your resume. What is the most advanced thing you have built with it, "
+                f"and what did you have to learn along the way?"
+            )
+    for project in projects[:2]:
+        add(
+            f"You mention the project \"{project}\". What was the hardest technical decision in it, "
+            f"and what would you change if you rebuilt it today?"
+        )
+    for company in companies[:2]:
+        add(
+            f"At {company}, what did you own end to end, and how did you measure whether it was successful?"
+        )
+    for generic in _GENERIC_QUESTIONS:
+        add(generic)
+    return out[:count]
+
+
+def _valid_question(text: object) -> str | None:
+    if not isinstance(text, str):
+        return None
+    q = re.sub(r"\s+", " ", text).strip().strip('"')
+    if len(q) < 12 or len(q) > 400:
+        return None
+    starters = {
+        "how", "what", "why", "when", "where", "which", "who", "walk", "describe", "tell",
+        "explain", "can", "could", "would", "should", "do", "did", "does", "have", "has",
+        "is", "are", "give", "share", "talk", "take",
+    }
+    first = q.split()[0].lower() if q.split() else ""
+    if not q.endswith("?") and first not in starters:
+        return None
+    if not q.endswith("?"):
+        q = q.rstrip(".") + "?"
+    if q.count("?") > 2:
+        return None
+    return q
+
+
 @router.post("/{code}/questions/generate", response_model=list[QuestionOut])
 async def generate_questions(code: str, body: QuestionGenerateRequest, db: AsyncSession = Depends(get_db)):
     room = await _get_room_or_404(db, code)
-    from app.models import Resume as ResumeModel
-
-    resume = await db.scalar(select(ResumeModel).where(ResumeModel.room_id == room.id).order_by(ResumeModel.parsed_at.desc()))
+    resume = await db.scalar(
+        select(Resume).where(Resume.room_id == room.id).order_by(Resume.parsed_at.desc())
+    )
     if not resume:
         raise HTTPException(400, "upload a resume first")
-    job = body.job_title or "software engineer"
-    prompt = f"""You are an expert technical interviewer. Given the candidate's resume below and the target role "{job}", generate {body.count} interview questions.
 
-Resume:
-{resume.text[:4000]}
+    count = max(1, min(int(body.count or 5), 12))
+    job = (body.job_title or "software engineer").strip()
+    summary = summarise_for_questions(resume.text)
+    existing = (
+        await db.scalars(select(Question).where(Question.room_id == room.id).order_by(Question.created_at))
+    ).all()
+    existing_texts = [q.text for q in existing]
 
-Return ONLY a JSON object: {{ "questions": ["q1", "q2", ...] }}"""
+    prompt = f"""You are an expert technical interviewer preparing for a live interview.
+
+TARGET ROLE: {job}
+CANDIDATE PROFILE (extracted from resume): {json.dumps(summary)}
+
+RESUME (excerpt):
+{resume.text[:6000]}
+
+ALREADY ASKED (do not repeat or paraphrase):
+{json.dumps(existing_texts[-20:]) if existing_texts else "[]"}
+
+Write {count} interview questions that are specific to THIS candidate.
+Rules:
+- Ground every question in something concrete from the resume (a skill, project, company, or claim).
+- Mix depth (how/why/trade-offs) with verification (what exactly did you do).
+- One question per item, under 55 words, ending with "?".
+- No generic "tell me about yourself" filler. No numbering, no preamble.
+- Do not invent experience the resume does not contain.
+
+Return ONLY JSON: {{"questions": ["...", "..."]}}"""
+
+    llm_questions: list[str] = []
     try:
-        data = chat_json(prompt, system="You output only valid JSON.")
-    except Exception as e:
-        raise HTTPException(500, f"LLM failed: {e}")
-    qs = data.get("questions", []) if isinstance(data, dict) else []
-    if not isinstance(qs, list):
-        qs = []
-    out = []
-    for q in qs[: body.count]:
-        qtext = str(q).strip()
-        if not qtext:
+        data = await chat_json(
+            prompt,
+            system="You are a meticulous technical interviewer. Output only valid JSON.",
+            max_tokens=1000,
+            temperature=0.4,
+        )
+        raw = data.get("questions", []) if isinstance(data, dict) else data
+        if isinstance(raw, list):
+            for item in raw:
+                q = _valid_question(item)
+                if q:
+                    llm_questions.append(q)
+    except Exception as e:  # noqa: BLE001
+        print(f"[questions] LLM generation failed, using deterministic fallback: {e}")
+
+    chosen: list[str] = []
+    seen = {_qkey(t) for t in existing_texts}
+    for q in llm_questions + _deterministic_questions(summary, count + 3):
+        key = _qkey(q)
+        if key in seen:
             continue
+        seen.add(key)
+        chosen.append(q)
+        if len(chosen) >= count:
+            break
+
+    out: list[QuestionOut] = []
+    for qtext in chosen:
         qrow = Question(room_id=room.id, text=qtext, source="resume")
         db.add(qrow)
         await db.commit()
         await db.refresh(qrow)
         out.append(QuestionOut(id=qrow.id, text=qrow.text, source=qrow.source, parent_id=qrow.parent_id, created_at=qrow.created_at))
+
+    if out:
+        try:
+            from app.signaling import manager
+
+            await manager.broadcast(code, {"type": "questions", "questions": [q.model_dump() for q in out]})
+        except Exception:
+            pass
     return out
 
 
 @router.get("/{code}/questions", response_model=list[QuestionOut])
 async def list_questions(code: str, db: AsyncSession = Depends(get_db)):
     room = await _get_room_or_404(db, code)
-    rows = (await db.scalars(select(Question).where(Question.room_id == room.id).order_by(Question.created_at))).all()
+    rows = (
+        await db.scalars(select(Question).where(Question.room_id == room.id).order_by(Question.created_at))
+    ).all()
     return [QuestionOut(id=r.id, text=r.text, source=r.source, parent_id=r.parent_id, created_at=r.created_at) for r in rows]
 
 
 @router.post("/{code}/questions/next", response_model=QuestionOut)
 async def next_question(code: str, body: NextQuestionRequest, db: AsyncSession = Depends(get_db)):
     room = await _get_room_or_404(db, code)
-    from app.models import Resume as ResumeModel, Transcript
+    resume = await db.scalar(
+        select(Resume).where(Resume.room_id == room.id).order_by(Resume.parsed_at.desc())
+    )
+    transcripts = (
+        await db.scalars(
+            select(Transcript).where(Transcript.room_id == room.id).order_by(Transcript.created_at)
+        )
+    ).all()
+    questions = (
+        await db.scalars(select(Question).where(Question.room_id == room.id).order_by(Question.created_at))
+    ).all()
 
-    resume = await db.scalar(select(ResumeModel).where(ResumeModel.room_id == room.id).order_by(ResumeModel.parsed_at.desc()))
-    # latest candidate answer
-    answer = body.previous_answer
-    if not answer:
-        last = await db.scalar(select(Transcript).where(Transcript.room_id == room.id, Transcript.speaker == "Candidate").order_by(Transcript.created_at.desc()))
-        answer = last.text if last else ""
-    last_q = await db.scalar(select(Question).where(Question.room_id == room.id).order_by(Question.created_at.desc()))
-    resume_text = resume.text[:3000] if resume else "(no resume)"
-    prompt = f"""You are an adaptive interviewer. Given the resume, the previous question, and the candidate's answer, generate ONE deeper follow-up question that probes gaps, inconsistencies, or areas needing more detail.
+    interviewer_names = {"interviewer", "host", (room.host_name or "").lower()}
+    candidate_lines = [
+        t.text
+        for t in transcripts
+        if (t.speaker or "").strip().lower() not in interviewer_names and t.text.strip()
+    ]
+    answer = (body.previous_answer or "").strip() or (candidate_lines[-1] if candidate_lines else "")
+    last_q = questions[-1] if questions else None
+    recent = "\n".join(
+        f"{'Q' if (t.speaker or '').lower() in interviewer_names else 'A'}: {t.text}"
+        for t in transcripts[-8:]
+    )
+    asked_recently = "\n".join(f"- {q.text}" for q in questions[-3:])
+    summary = summarise_for_questions(resume.text) if resume else {"skills": [], "projects": []}
 
-Resume: {resume_text}
-Previous question: {last_q.text if last_q else "(none)"}
-Candidate answer: {answer}
+    prompt = f"""You are an adaptive interviewer. Ask ONE follow-up question based on what the candidate just said.
 
-Return ONLY JSON: {{ "question": "..." }}"""
-    try:
-        data = chat_json(prompt, system="You output only valid JSON.")
-    except Exception as e:
-        raise HTTPException(500, f"LLM failed: {e}")
+CANDIDATE PROFILE: {json.dumps(summary)}
+RESUME (excerpt): {(resume.text[:2500] if resume else "(no resume)")}
+
+CANDIDATE ANSWER: {answer or "(no answer yet)"}
+
+RECENT EXCHANGE:
+{recent or "(none)"}
+
+QUESTIONS YOU ALREADY ASKED (do NOT reuse their topics or reword them):
+{asked_recently or "(none yet)"}
+
+Rules:
+- Probe a gap, an unstated detail, a trade-off, or a possible inconsistency in the answer.
+- Use the candidate's own words/technology names.
+- If the answer is vague, ask for a specific example with numbers, tools, or outcomes.
+- One NEW question only, under 45 words, ending with "?".
+- It must cover a DIFFERENT angle than every question above (change the feature, skill, or concern entirely).
+- Do not repeat or paraphrase any earlier question.
+
+Return ONLY JSON: {{"question": "..."}}"""
+
     qtext = ""
-    if isinstance(data, dict):
-        qtext = str(data.get("question", "")).strip()
+    try:
+        data = await chat_json(
+            prompt,
+            system="You are a sharp technical interviewer. Output only valid JSON.",
+            max_tokens=400,
+            temperature=0.5,
+        )
+        if isinstance(data, dict):
+            qtext = _valid_question(data.get("question", "")) or ""
+    except Exception as e:  # noqa: BLE001
+        print(f"[questions] adaptive generation failed, using fallback: {e}")
+
+    def _too_similar(new_q: str, recent_questions: list) -> bool:
+        """Reject wardrobe repeats: >60% informative-word overlap with anything asked recently."""
+        stop = {"what", "how", "the", "you", "your", "a", "an", "of", "in", "for", "and", "did",
+                "do", "to", "with", "can", "could", "tell", "me", "about", "it", "is", "was",
+                "describe", "explain", "walk", "through"}
+        def words(q: str):
+            return {w for w in re.findall(r"[a-z0-9]+", q.lower()) if w not in stop and len(w) > 2}
+        nw = words(new_q)
+        if not nw:
+            return False
+        for q in recent_questions:
+            ow = words(q.text)
+            if ow and len(nw & ow) / len(nw | ow) > 0.6:
+                return True
+        return False
+
+    if qtext and _too_similar(qtext, questions[-3:]):
+        print("[questions] adaptive question too similar to a previous one; using fallback")
+        qtext = ""
+
     if not qtext:
-        raise HTTPException(500, "LLM returned no question")
-    qrow = Question(room_id=room.id, text=qtext, source="adaptive", parent_id=last_q.id if last_q else None)
+        skills = []
+        try:
+            from app.graph_builder import match_skills
+
+            skills = match_skills(answer)[:2]
+        except Exception:
+            skills = []
+        if skills:
+            qtext = (
+                f"You mentioned {skills[0]}. Can you walk me through a specific problem you solved with it — "
+                f"what broke, how you diagnosed it, and what the measurable outcome was?"
+            )
+        elif summary.get("projects"):
+            qtext = f"You mentioned {summary['projects'][0]}. What was your individual contribution versus the team's?"
+        else:
+            qtext = "Can you give a concrete example of the hardest bug you have debugged recently, and how you found the root cause?"
+
+    qrow = Question(
+        room_id=room.id,
+        text=qtext,
+        source="adaptive",
+        parent_id=last_q.id if last_q else None,
+    )
     db.add(qrow)
     await db.commit()
     await db.refresh(qrow)
-    return QuestionOut(id=qrow.id, text=qrow.text, source=qrow.source, parent_id=qrow.parent_id, created_at=qrow.created_at)
+    out = QuestionOut(id=qrow.id, text=qrow.text, source=qrow.source, parent_id=qrow.parent_id, created_at=qrow.created_at)
+    try:
+        from app.signaling import manager
+
+        await manager.broadcast(code, {"type": "question", "question": out.model_dump()})
+    except Exception:
+        pass
+    return out
 
 
 # ---------- Knowledge graph ----------
 @router.get("/{code}/graph", response_model=GraphOut)
 async def get_graph(code: str, db: AsyncSession = Depends(get_db)):
     room = await _get_room_or_404(db, code)
-    nodes = (await db.scalars(select(GraphNode).where(GraphNode.room_id == room.id))).all()
-    edges = (await db.scalars(select(GraphEdge).where(GraphEdge.room_id == room.id))).all()
-    return GraphOut(
-        nodes=[GraphNodeOut(id=n.node_key, label=n.label, type=n.type, meta=json.loads(n.meta) if n.meta else None) for n in nodes],
-        edges=[GraphEdgeOut(id=e.id, source=e.source_key, target=e.target_key, relation=e.relation, weight=e.weight) for e in edges],
-    )
+    data = await _read_graph(db, room)
+    return GraphOut(nodes=data["nodes"], edges=data["edges"])
 
 
 @router.post("/{code}/graph/rebuild", response_model=GraphOut)
-async def rebuild_graph(code: str, db: AsyncSession = Depends(get_db)):
+async def rebuild_graph(
+    code: str,
+    source: str = Query("all", pattern="^(all|resume|transcript)$"),
+    force: bool = Query(True),
+    db: AsyncSession = Depends(get_db),
+):
     room = await _get_room_or_404(db, code)
-    from app.models import Resume as ResumeModel, Transcript
-
-    resume = await db.scalar(select(ResumeModel).where(ResumeModel.room_id == room.id).order_by(ResumeModel.parsed_at.desc()))
-    transcripts = (await db.scalars(select(Transcript).where(Transcript.room_id == room.id).order_by(Transcript.created_at))).all()
-    resume_text = resume.text[:3000] if resume else "(no resume)"
-    answers_text = "\n".join(f"[{t.speaker}] {t.text}" for t in transcripts[-20:])
-    prompt = f"""You are analyzing an interview. Build a knowledge graph.
-
-Resume:
-{resume_text}
-
-Candidate/Interviewer transcript (recent):
-{answers_text or "(no answers yet)"}
-
-Extract entities (skills, projects, companies, claims, topics) and relationships.
-
-RELATION RULES (pick exactly one per edge):
-- "mentions": the target label is LITERALLY written in the resume text (e.g. resume says "Skills: Python" → edge person→Python = "mentions"). Use this for every skill, company, degree, or tool that appears verbatim in the resume.
-- "supports": a candidate answer confirms or backs up a resume claim.
-- "contradicts": a candidate answer conflicts with the resume.
-- "related": loosely connected concepts that are NOT directly stated in the resume.
-
-EXAMPLES:
-Resume: "Skills: Python, Docker. Company: TechCorp."
-  person → Python = "mentions" (grey)
-  person → Docker = "mentions" (grey)
-  person → TechCorp = "mentions" (grey)
-  Python → Docker = "related" (blue, loosely connected)
-
-Return ONLY JSON:
-{{ "nodes": [{{"id":"n1","label":"Python","type":"skill"}}], "edges": [{{"source":"n1","target":"n2","relation":"mentions","weight":1.0}}] }}
-
-Rules:
-- node type one of: skill, topic, claim, entity
-- relation one of: mentions, supports, contradicts, related
-- weight 0.0-1.0 (mentions=1.0, supports=0.9, contradicts=0.9, related=0.5)
-- max 40 nodes, 60 edges
-- use stable ids (reuse same id for same entity across calls)"""
     try:
-        data = chat_json(prompt, system="You output only valid JSON.")
-    except Exception as e:
-        raise HTTPException(500, f"LLM failed: {e}")
-    if isinstance(data, list):
-        nodes = data
-        edges = []
-    elif isinstance(data, dict):
-        nodes = data.get("nodes", [])
-        edges = data.get("edges", [])
-    else:
-        nodes = []
-        edges = []
-
-    from sqlalchemy import delete as sql_delete
-
-    # clear old graph (synchronize_session=False avoids stale ORM state)
-    await db.execute(sql_delete(GraphNode).where(GraphNode.room_id == room.id).execution_options(synchronize_session=False))
-    await db.execute(sql_delete(GraphEdge).where(GraphEdge.room_id == room.id).execution_options(synchronize_session=False))
-    await db.flush()
-
-    # build label lookup for post-processing
-    label_by_id = {}
-    node_ids = set()
-    for n in nodes[:40]:
-        if not isinstance(n, dict):
-            continue
-        nid = str(n.get("id", "")).strip()
-        label = str(n.get("label", "")).strip()
-        ntype = str(n.get("type", "entity")).strip()
-        if not nid or not label:
-            continue
-        node_ids.add(nid)
-        label_by_id[nid] = label
-        gn = GraphNode(room_id=room.id, node_key=nid, label=label, type=ntype, meta=json.dumps(n.get("meta")) if n.get("meta") else None)
-        db.add(gn)
-
-    resume_lower = resume_text.lower()
-    for e in edges[:60]:
-        if not isinstance(e, dict):
-            continue
-        src = str(e.get("source", "")).strip()
-        tgt = str(e.get("target", "")).strip()
-        if not src or not tgt or src not in node_ids or tgt not in node_ids:
-            continue
-        relation = str(e.get("relation", "related"))
-        weight = float(e.get("weight", 1.0))
-        # post-process: if source is a person/company/role (entity/claim) and target label is literally in resume, force "mentions"
-        src_node = next((n for n in nodes if str(n.get("id", "")).strip() == src), None)
-        src_type = str(src_node.get("type", "")).lower() if src_node else ""
-        tgt_label = label_by_id.get(tgt, "")
-        if src_type in ("entity", "claim") and tgt_label and tgt_label.lower() in resume_lower:
-            relation = "mentions"
-            weight = 1.0
-        ge = GraphEdge(room_id=room.id, source_key=src, target_key=tgt, relation=relation, weight=weight)
-        db.add(ge)
-    await db.commit()
-
-    # broadcast update
-    from app.signaling import manager
-
-    graph = await get_graph(code, db)
-    await manager.broadcast(code, {"type": "graph-update", "nodes": [n.model_dump() for n in graph.nodes], "edges": [e.model_dump() for e in graph.edges]})
-    return graph
+        data = await rebuild_room_graph(db, room, use_llm=(source != "resume"), force=force)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"graph rebuild failed: {e}")
+    return GraphOut(nodes=data["nodes"], edges=data["edges"])

@@ -1,8 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+const NODE_COLOR: Record<string, string> = {
+  skill: '#f39c12',
+  topic: '#9b59b6',
+  claim: '#e74c3c',
+  entity: '#2ecc71',
+  group: '#3498db',
+}
+
+const LINK_COLOR: Record<string, string> = {
+  supports: '#2ecc71',
+  contradicts: '#e74c3c',
+  has_skill: '#f1c40f',
+  worked_at: '#1abc9c',
+  used_skill: '#16a085',
+  studied_at: '#3498db',
+  built_with: '#e67e22',
+  mentions: '#95a5a6',
+  includes: '#5dade2',
+  related: '#8e6fd8',
+}
+
+const RADIUS_BY_TYPE: Record<string, number> = {
+  entity: 11,
+  group: 14,
+  claim: 6,
+}
 
 export default function GraphPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const code = window.location.pathname.split('/graph/')[1] || ''
+  const [counts, setCounts] = useState({ nodes: 0, edges: 0 })
+  const [live, setLive] = useState(false)
 
   const initialized = useRef(false)
   useEffect(() => {
@@ -11,97 +40,199 @@ export default function GraphPage() {
 
     const script = document.createElement('script')
     script.src = 'https://d3js.org/d3.v7.min.js'
-    script.onload = () => initGraph(code)
+    script.onload = () => initGraph(code, setCounts, setLive)
     document.head.appendChild(script)
-    return () => {
-      // don't reset initialized — StrictMode remount should not re-init
-    }
+    return () => {}
   }, [code])
 
   return (
-    <div style={{ margin: 0, fontFamily: 'sans-serif', background: '#0b1020', color: '#e6e6e6', height: '100vh' }}>
-      <h1 style={{ padding: '12px 16px', margin: 0, fontSize: 16, borderBottom: '1px solid #222' }}>
-        Knowledge Graph — Room {code}
+    <div style={{ margin: 0, fontFamily: 'sans-serif', background: '#0b1020', color: '#e6e6e6', height: '100vh', overflow: 'hidden' }}>
+      <style>{`
+        .kg-link { stroke-opacity: 0.6; }
+        .kg-link.supports { stroke: #2ecc71; }
+        .kg-link.contradicts { stroke: #e74c3c; }
+        .kg-link.has_skill { stroke: #f1c40f; }
+        .kg-link.worked_at { stroke: #1abc9c; }
+        .kg-link.used_skill { stroke: #16a085; }
+        .kg-link.studied_at { stroke: #3498db; }
+        .kg-link.built_with { stroke: #e67e22; }
+        .kg-link.mentions { stroke: #95a5a6; }
+        .kg-link.includes { stroke: #5dade2; }
+        .kg-link.related { stroke: #8e6fd8; }
+        .kg-node text { font-size: 11px; fill: #e6e6e6; pointer-events: none; paint-order: stroke; stroke: #0b1020; stroke-width: 3px; }
+        .kg-node circle { cursor: grab; }
+        .kg-legend { position: fixed; top: 54px; right: 14px; background: rgba(8,12,26,0.85); padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; border: 1px solid #222a44; min-width: 150px; }
+        .kg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+        .kg-line { display: inline-block; width: 16px; height: 2px; margin-right: 6px; vertical-align: middle; }
+        .kg-empty { position: fixed; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: #7b86a8; font-size: 14px; text-align: center; padding: 24px; }
+      `}</style>
+      <h1 style={{ padding: '12px 16px', margin: 0, fontSize: 16, borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>Knowledge Graph — Room {code}</span>
+        <span style={{ fontSize: 12, color: '#8b95b5' }}>
+          <span style={{ color: live ? '#2ecc71' : '#e74c3c' }}>●</span> {live ? 'live' : 'offline'} · {counts.nodes} nodes · {counts.edges} edges
+        </span>
       </h1>
       <div id="graph" ref={containerRef} style={{ width: '100vw', height: 'calc(100vh - 44px)' }} />
+      <div className="kg-legend">
+        <div><b>Nodes</b></div>
+        <div><span className="kg-dot" style={{ background: NODE_COLOR.skill }} />skill</div>
+        <div><span className="kg-dot" style={{ background: NODE_COLOR.group }} />skill category</div>
+        <div><span className="kg-dot" style={{ background: NODE_COLOR.topic }} />project / topic</div>
+        <div><span className="kg-dot" style={{ background: NODE_COLOR.claim }} />claim</div>
+        <div><span className="kg-dot" style={{ background: NODE_COLOR.entity }} />person / company</div>
+        <div style={{ marginTop: 8 }}><b>Edges</b></div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.contradicts }} />contradicts</div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.supports }} />supports</div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.includes }} />includes</div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.built_with }} />built with</div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.used_skill }} />used skill</div>
+        <div><span className="kg-line" style={{ background: LINK_COLOR.mentions }} />mentions</div>
+      </div>
+      <div id="kg-empty" className="kg-empty">No graph yet — upload a resume in the copilot to seed it from the resume.</div>
     </div>
   )
 }
 
-function initGraph(code: string) {
+function initGraph(
+  code: string,
+  setCounts: (c: { nodes: number; edges: number }) => void,
+  setLive: (b: boolean) => void,
+) {
   const d3 = (window as any).d3
   if (!d3) return
   const width = window.innerWidth
   const height = window.innerHeight - 44
   const svg = d3.select('#graph').append('svg').attr('width', width).attr('height', height)
   const g = svg.append('g')
-  const zoom = d3.zoom().on('zoom', (e: any) => g.attr('transform', e.transform))
+  const zoom = d3.zoom().scaleExtent([0.2, 3]).on('zoom', (e: any) => g.attr('transform', e.transform))
   svg.call(zoom)
 
-  const NODE_COLOR: Record<string, string> = { skill: '#f39c12', topic: '#9b59b6', claim: '#e74c3c', entity: '#2ecc71' }
-  let simulation = d3.forceSimulation()
-    .force('link', d3.forceLink().id((d: any) => d.id).distance(80))
-    .force('charge', d3.forceManyBody().strength(-200))
+  const simulation = d3.forceSimulation()
+    .force('link', d3.forceLink().id((d: any) => d.id).distance(linkDistance))
+    // Milder repulsion + a gentle pull to the centre: the previous -260 charge
+    // blasted 40+ skill nodes to the edges of the screen ("scattered around").
+    .force('charge', d3.forceManyBody().strength((d: any) => (d.type === 'group' ? -220 : -150)))
     .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('x', d3.forceX(width / 2).strength(0.04))
+    .force('y', d3.forceY(height / 2).strength(0.04))
+    .force('collide', d3.forceCollide().radius((d: any) => (RADIUS_BY_TYPE[d.type] || 8) + 16))
 
   let linkSel: any, nodeSel: any
-  let nodes: any[] = [], links: any[] = []
+  let nodes: any[] = []
+  let links: any[] = []
+
+  simulation.on('tick', () => {
+    if (linkSel) {
+      linkSel
+        // Lines without settled positions collapse onto the top-left corner;
+        // hide them until both endpoints are finite.
+        .attr('visibility', (d: any) =>
+          Number.isFinite(d.source?.x) && Number.isFinite(d.target?.x) ? null : 'hidden')
+        .attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
+        .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y)
+    }
+    if (nodeSel) nodeSel.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
+  })
 
   function render() {
-    linkSel = g.selectAll('.link').data(links)
+    linkSel = g.selectAll('.kg-link').data(links, (d: any) => `${d.source.id || d.source}-${d.target.id || d.target}-${d.relation}`)
     linkSel.exit().remove()
-    const linkEnter = linkSel.enter().append('line').attr('class', (d: any) => 'link ' + d.relation)
-    linkSel = linkEnter.merge(linkSel).attr('stroke-width', (d: any) => Math.max(1, (d.weight || 1) * 2))
-      .attr('stroke-opacity', 0.6)
+    const linkEnter = linkSel.enter().append('line').attr('class', (d: any) => `kg-link ${d.relation}`)
+    linkSel = linkEnter.merge(linkSel)
+      .attr('stroke-width', (d: any) => Math.max(1.2, (d.weight || 0.6) * 2))
+      .attr('stroke-dasharray', (d: any) => (d.relation === 'related' ? '4 3' : null))
+      .attr('stroke', (d: any) => LINK_COLOR[d.relation] || '#95a5a6')
 
-    nodeSel = g.selectAll('.node').data(nodes, (d: any) => d.id)
+    nodeSel = g.selectAll('.kg-node').data(nodes, (d: any) => d.id)
     nodeSel.exit().remove()
-    const nodeEnter = nodeSel.enter().append('g').attr('class', 'node')
-      .call(d3.drag().on('start', dragStart).on('drag', dragging).on('end', dragEnd))
-    nodeEnter.append('circle').attr('r', 8).attr('fill', (d: any) => NODE_COLOR[d.type] || '#999').attr('stroke', '#fff').attr('stroke-width', 1.5)
-    nodeEnter.append('text').attr('dx', 12).attr('dy', 4).text((d: any) => d.label).attr('font-size', 11).attr('fill', '#e6e6e6')
+    const nodeEnter = nodeSel.enter().append('g').attr('class', 'kg-node')
+      .call(d3.drag()
+        .on('start', (e: any, d: any) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
+        .on('drag', (e: any, d: any) => { d.fx = e.x; d.fy = e.y })
+        .on('end', (e: any, d: any) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null }))
+    nodeEnter.append('circle')
+      .attr('r', (d: any) => RADIUS_BY_TYPE[d.type] || 8)
+      .attr('fill', (d: any) => NODE_COLOR[d.type] || '#999')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1.5)
+    nodeEnter.append('title').text((d: any) => {
+      const meta = d.meta || {}
+      return [d.label, d.type, meta.evidence ? `Evidence: ${meta.evidence}` : '', meta.source ? `Source: ${meta.source}` : '', meta.degree ? `Degree: ${meta.degree}` : ''].filter(Boolean).join('\n')
+    })
+    nodeEnter.append('text').attr('dx', 12).attr('dy', 4).text((d: any) => d.label)
+
+    // Newly entered nodes MUST be merged back into nodeSel, otherwise the
+    // tick handler never transforms them and they pile up at (0,0).
     nodeSel = nodeEnter.merge(nodeSel)
 
     simulation.nodes(nodes)
     simulation.force('link').links(links)
-    simulation.alpha(1).restart()
-    simulation.on('tick', () => {
-      linkSel.attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
-        .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y)
-      nodeSel.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
-    })
+    simulation.alpha(0.9).restart()
+    document.getElementById('kg-empty')!.style.display = nodes.length ? 'none' : 'flex'
+    setCounts({ nodes: nodes.length, edges: links.length })
   }
 
-  function dragStart(e: any, d: any) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y }
-  function dragging(e: any, d: any) { d.fx = e.x; d.fy = e.y }
-  function dragEnd(e: any, d: any) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null }
-
-  function applyGraph(g: any) {
-    nodes = (g.nodes || []).map((n: any) => ({ ...n }))
-    const nodeMap = new Map(nodes.map((n: any) => [n.id, n]))
-    links = (g.edges || []).map((e: any) => ({
-      source: nodeMap.get(e.source) || e.source,
-      target: nodeMap.get(e.target) || e.target,
+  function applyGraph(graph: any) {
+    const incoming = (graph.nodes || []).map((n: any) => ({ ...n }))
+    // de-duplicate by id (last wins)
+    const byId = new Map<string, any>()
+    for (const n of incoming) byId.set(String(n.id), n)
+    const prevPos = new Map(nodes.map((n: any) => [n.id, n]))
+    nodes = Array.from(byId.values()).map((n: any, i: number) => {
+      const total = byId.size || 1
+      const a = (i / total) * Math.PI * 2
+      const prev = prevPos.get(String(n.id))
+      if (prev && Number.isFinite(prev.x)) {
+        return { ...n, x: prev.x, y: prev.y, vx: prev.vx, vy: prev.vy }
+      }
+      // spread brand-new nodes in a ring so the first frames are readable
+      return { ...n, x: width / 2 + Math.cos(a) * (height / 3), y: height / 2 + Math.sin(a) * (height / 3) }
+    })
+    // Index the FINAL node objects: the links must reference the same objects
+    // the simulation moves — pointing at the pre-map raw values left every
+    // edge stuck at NaN forever (invisible lines bug).
+    const finalById = new Map(nodes.map((n: any) => [n.id, n]))
+    links = (graph.edges || []).map((e: any) => ({
+      source: finalById.get(String(e.source)) || e.source,
+      target: finalById.get(String(e.target)) || e.target,
       relation: e.relation,
       weight: e.weight,
-    }))
+    })).filter((e: any) => e.source && e.target)
     render()
   }
 
   fetch(`/api/rooms/${code}/graph`)
-    .then(r => r.json())
+    .then((r) => r.json())
     .then(applyGraph)
-    .catch(e => console.error(e))
+    .catch((e) => console.error('graph fetch failed', e))
 
   const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const ws = new WebSocket(`${wsProto}//${window.location.host}/ws/${code}?name=graph-viewer`)
+  ws.onopen = () => { setLive(true); console.log('graph ws connected') }
+  ws.onclose = () => setLive(false)
   ws.onmessage = (ev: any) => {
     try {
       const data = JSON.parse(ev.data)
-      if (data.type === 'graph-update') {
-        applyGraph({ nodes: data.nodes, edges: data.edges })
-      }
+      if (data.type === 'graph-update') applyGraph({ nodes: data.nodes, edges: data.edges })
     } catch (e) { console.error(e) }
   }
-  ws.onopen = () => console.log('ws connected')
+
+  window.addEventListener('resize', () => {
+    svg.attr('width', window.innerWidth).attr('height', window.innerHeight - 44)
+    simulation.force('center', d3.forceCenter(window.innerWidth / 2, (window.innerHeight - 44) / 2))
+    simulation.alpha(0.3).restart()
+  })
+}
+
+function linkDistance(d: any) {
+  switch (d.relation) {
+    case 'includes': return 65
+    case 'has_skill': return 130
+    case 'mentions': return 105
+    case 'worked_at': return 120
+    case 'used_skill': return 90
+    case 'built_with': return 95
+    case 'studied_at': return 130
+    default: return 85
+  }
 }

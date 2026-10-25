@@ -4,104 +4,141 @@
 <meta charset="utf-8" />
 <title>Knowledge Graph</title>
 <style>
-  body { margin: 0; font-family: sans-serif; background: #0b1020; color: #e6e6e6; }
-  h1 { padding: 12px 16px; margin: 0; font-size: 16px; border-bottom: 1px solid #222; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #0b1020; color: #e6e6e6; overflow: hidden; }
+  h1 { padding: 12px 16px; margin: 0; font-size: 16px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+  #meta { font-size: 12px; color: #8b95b5; font-weight: normal; }
   #graph { width: 100vw; height: calc(100vh - 44px); }
-  .node circle { stroke: #fff; stroke-width: 1.5px; }
-  .node text { font-size: 11px; fill: #e6e6e6; pointer-events: none; }
-  .link { stroke-opacity: 0.6; }
-  .link.supports { stroke: #2ecc71; }
-  .link.contradicts { stroke: #e74c3c; }
-  .link.mentions { stroke: #95a5a6; }
-  .link.related { stroke: #3498db; }
-  .legend { position: fixed; top: 52px; right: 12px; background: rgba(0,0,0,0.6); padding: 8px 10px; border-radius: 6px; font-size: 12px; }
-  .legend div { margin: 2px 0; }
+  .kg-node circle { stroke: #fff; stroke-width: 1.5px; cursor: grab; }
+  .kg-node text { font-size: 11px; fill: #e6e6e6; pointer-events: none; paint-order: stroke; stroke: #0b1020; stroke-width: 3px; }
+  .kg-link { stroke-opacity: 0.55; }
+  .kg-link.supports { stroke: #2ecc71; }
+  .kg-link.contradicts { stroke: #e74c3c; }
+  .kg-link.has_skill { stroke: #f1c40f; }
+  .kg-link.worked_at { stroke: #1abc9c; }
+  .kg-link.studied_at { stroke: #3498db; }
+  .kg-link.built_with { stroke: #e67e22; }
+  .kg-link.mentions { stroke: #95a5a6; }
+  .kg-link.related { stroke: #8e6fd8; }
+  .legend { position: fixed; top: 54px; right: 14px; background: rgba(8,12,26,0.85); padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; border: 1px solid #222a44; min-width: 150px; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .line { display: inline-block; width: 16px; height: 2px; margin-right: 6px; vertical-align: middle; }
+  #empty { position: fixed; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: #7b86a8; font-size: 14px; text-align: center; padding: 24px; }
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
-<h1>Knowledge Graph — Room __ROOM_CODE__</h1>
+<h1><span>Knowledge Graph — Room __ROOM_CODE__</span><span id="meta">connecting…</span></h1>
 <div id="graph"></div>
+<div id="empty">No graph yet — upload a resume in the copilot to seed it from the resume.</div>
 <div class="legend">
-  <div><span class="dot" style="background:#3498db"></span>skill</div>
-  <div><span class="dot" style="background:#9b59b6"></span>topic</div>
-  <div><span class="dot" style="background:#e67e22"></span>claim</div>
-  <div><span class="dot" style="background:#1abc9c"></span>entity</div>
-  <div style="margin-top:6px;border-top:1px solid #444;padding-top:4px">
-    <div><span style="color:#2ecc71">━</span> supports</div>
-    <div><span style="color:#e74c3c">━</span> contradicts</div>
-    <div><span style="color:#95a5a6">━</span> mentions</div>
-    <div><span style="color:#3498db">━</span> related</div>
-  </div>
+  <div><b>Nodes</b></div>
+  <div><span class="dot" style="background:#f39c12"></span>skill</div>
+  <div><span class="dot" style="background:#9b59b6"></span>project / topic</div>
+  <div><span class="dot" style="background:#e74c3c"></span>claim</div>
+  <div><span class="dot" style="background:#2ecc71"></span>person / company</div>
+  <div style="margin-top:8px"><b>Edges</b></div>
+  <div><span class="line" style="background:#e74c3c"></span>contradicts</div>
+  <div><span class="line" style="background:#2ecc71"></span>supports</div>
+  <div><span class="line" style="background:#f1c40f"></span>has skill</div>
+  <div><span class="line" style="background:#95a5a6"></span>mentions</div>
 </div>
 <script>
 const ROOM = "__ROOM_CODE__";
+const API_BASE = "__API_BASE__";
 const NODE_COLOR = { skill: "#f39c12", topic: "#9b59b6", claim: "#e74c3c", entity: "#2ecc71" };
+const LINK_COLOR = { supports: "#2ecc71", contradicts: "#e74c3c", has_skill: "#f1c40f", worked_at: "#1abc9c", studied_at: "#3498db", built_with: "#e67e22", mentions: "#95a5a6", related: "#8e6fd8" };
 
 const width = window.innerWidth;
 const height = window.innerHeight - 44;
 const svg = d3.select("#graph").append("svg").attr("width", width).attr("height", height);
 const g = svg.append("g");
-const zoom = d3.zoom().on("zoom", (e) => g.attr("transform", e.transform));
+const zoom = d3.zoom().scaleExtent([0.25, 3]).on("zoom", (e) => g.attr("transform", e.transform));
 svg.call(zoom);
 
-let simulation = d3.forceSimulation()
-  .force("link", d3.forceLink().id(d => d.id).distance(80))
-  .force("charge", d3.forceManyBody().strength(-200))
-  .force("center", d3.forceCenter(width / 2, height / 2));
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d => d.id).distance(d => (d.relation === "mentions" ? 110 : 80)).strength(0.35))
+  .force("charge", d3.forceManyBody().strength(-260))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collide", d3.forceCollide().radius(22));
 
 let linkSel, nodeSel;
 let nodes = [], links = [];
 
-function render() {
-  linkSel = g.selectAll(".link").data(links, d => d.source.id + "-" + d.target.id + "-" + d.relation);
-  linkSel.exit().remove();
-  const linkEnter = linkSel.enter().append("line").attr("class", d => "link " + d.relation);
-  linkSel = linkEnter.merge(linkSel).attr("stroke-width", d => Math.max(1, (d.weight || 1) * 2));
+simulation.on("tick", () => {
+  if (linkSel) linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  if (nodeSel) nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+});
 
-  nodeSel = g.selectAll(".node").data(nodes, d => d.id);
+function render() {
+  linkSel = g.selectAll(".kg-link").data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}-${d.relation}`);
+  linkSel.exit().remove();
+  const linkEnter = linkSel.enter().append("line").attr("class", d => `kg-link ${d.relation}`);
+  linkSel = linkEnter.merge(linkSel)
+    .attr("stroke-width", d => Math.max(1, (d.weight || 0.6) * 2))
+    .attr("stroke-dasharray", d => (d.relation === "related" ? "4 3" : null))
+    .attr("stroke", d => LINK_COLOR[d.relation] || "#95a5a6");
+
+  nodeSel = g.selectAll(".kg-node").data(nodes, d => d.id);
   nodeSel.exit().remove();
-  const nodeEnter = nodeSel.enter().append("g").attr("class", "node")
-    .call(d3.drag().on("start", dragStart).on("drag", dragging).on("end", dragEnd));
-  nodeEnter.append("circle").attr("r", 8).attr("fill", d => NODE_COLOR[d.type] || "#999");
+  const nodeEnter = nodeSel.enter().append("g").attr("class", "kg-node")
+    .call(d3.drag()
+      .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+  nodeEnter.append("circle")
+    .attr("r", d => (d.type === "entity" ? 11 : d.type === "claim" ? 6 : 8))
+    .attr("fill", d => NODE_COLOR[d.type] || "#999");
+  nodeEnter.append("title").text(d => {
+    const m = d.meta || {};
+    return [d.label, d.type, m.evidence ? "Evidence: " + m.evidence : "", m.source ? "Source: " + m.source : ""].filter(Boolean).join("\n");
+  });
   nodeEnter.append("text").attr("dx", 12).attr("dy", 4).text(d => d.label);
-  nodeSel = nodeEnter.merge(nodeSel);
 
   simulation.nodes(nodes);
   simulation.force("link").links(links);
-  simulation.alpha(1).restart();
-  simulation.on("tick", () => {
-    linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-    nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
-  });
+  simulation.alpha(0.9).restart();
+  document.getElementById("empty").style.display = nodes.length ? "none" : "flex";
+  document.getElementById("meta").textContent = `${nodes.length} nodes · ${links.length} edges`;
 }
 
-function dragStart(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
-function dragging(e, d) { d.fx = e.x; d.fy = e.y; }
-function dragEnd(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
-
-function applyGraph(g) {
-  nodes = (g.nodes || []).map(n => ({ ...n }));
-  links = (g.edges || []).map(e => ({ source: e.source, target: e.target, relation: e.relation, weight: e.weight }));
+function applyGraph(graph) {
+  const incoming = (graph.nodes || []).map(n => ({ ...n }));
+  const byId = new Map(incoming.map(n => [n.id, n]));
+  const old = new Map(nodes.map(n => [n.id, n]));
+  nodes = incoming.map(n => {
+    const prev = old.get(n.id);
+    return prev ? { ...n, x: prev.x, y: prev.y, vx: prev.vx, vy: prev.vy } : n;
+  });
+  links = (graph.edges || []).map(e => ({
+    source: byId.get(e.source) || e.source,
+    target: byId.get(e.target) || e.target,
+    relation: e.relation,
+    weight: e.weight,
+  })).filter(e => e.source && e.target);
   render();
 }
 
-// fetch initial
-fetch("/api/rooms/" + ROOM + "/graph").then(r => r.json()).then(applyGraph).catch(e => console.error(e));
+fetch(API_BASE + "/api/rooms/" + ROOM + "/graph")
+  .then(r => r.json())
+  .then(applyGraph)
+  .catch(e => console.error("graph fetch failed", e));
 
-// real-time via WebSocket
-const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
-const ws = new WebSocket(wsProto + "//" + window.location.host + "/ws/" + ROOM + "?name=graph-viewer");
+const wsBase = API_BASE.replace(/^http/, "ws");
+const ws = new WebSocket(wsBase + "/ws/" + ROOM + "?name=graph-viewer");
+ws.onopen = () => { document.getElementById("meta").textContent = "live"; };
+ws.onclose = () => { document.getElementById("meta").textContent = "offline"; };
 ws.onmessage = (ev) => {
   try {
     const data = JSON.parse(ev.data);
-    if (data.type === "graph-update") {
-      applyGraph({ nodes: data.nodes, edges: data.edges });
-    }
+    if (data.type === "graph-update") applyGraph({ nodes: data.nodes, edges: data.edges });
   } catch (e) { console.error(e); }
 };
-ws.onopen = () => console.log("ws connected");
+
+window.addEventListener("resize", () => {
+  svg.attr("width", window.innerWidth).attr("height", window.innerHeight - 44);
+  simulation.force("center", d3.forceCenter(window.innerWidth / 2, (window.innerHeight - 44) / 2));
+  simulation.alpha(0.3).restart();
+});
 </script>
 </body>
 </html>
