@@ -256,8 +256,10 @@
       "meta": {
         "source": "transcript",
         "speaker": "Candidate",
-        "evidence": "Early at DataHive, I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug.",
-        "verdict": "mentions"
+        "evidence": "I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
       }
     },
     {
@@ -314,7 +316,7 @@
     },
     {
       "id": "claim:fd6a9552a3b3",
-      "label": "Pytest suite covers 85% of the code",
+      "label": "pytest suite covers 85% of the code",
       "type": "claim",
       "meta": {
         "source": "transcript",
@@ -353,20 +355,8 @@
       }
     },
     {
-      "id": "claim:a4eec48aa029",
-      "label": "Set up Grafana dashboards with alerting",
-      "type": "claim",
-      "meta": {
-        "source": "transcript",
-        "evidence": "set up Grafana dashboards with alerting so we would catch it earlier next time",
-        "verdict": "supports",
-        "confidence": 0.9,
-        "llm": true
-      }
-    },
-    {
       "id": "claim:e1f74906364e",
-      "label": "Own GitHub Actions pipeline with multi-stage Docker builds",
+      "label": "Owns GitHub Actions pipeline with multi-stage Docker builds",
       "type": "claim",
       "meta": {
         "source": "transcript",
@@ -377,15 +367,23 @@
       }
     },
     {
-      "id": "claim:a15f259ff4c0",
-      "label": "Deployed with Terraform to AWS EKS",
+      "id": "claim:378696247fbb",
+      "label": "Scanned images with Trivy and deployed with Terraform to AWS EKS",
       "type": "claim",
       "meta": {
         "source": "transcript",
-        "evidence": "deployed with Terraform to AWS EKS",
+        "evidence": "scanned with Trivy, and deployed with Terraform to AWS EKS",
         "verdict": "supports",
         "confidence": 0.9,
         "llm": true
+      }
+    },
+    {
+      "id": "skill:trivy",
+      "label": "Trivy",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
       }
     },
     {
@@ -399,604 +397,618 @@
   ],
   "edges": [
     {
-      "id": "2dac1787-ddfa-4a9e-99c5-1de7f5d04f0b",
+      "id": "fa37b748-1a49-4820-8442-a88efdcbac80",
       "source": "person:candidate",
       "target": "skill:kubernetes",
       "relation": "contradicts",
       "weight": 0.95
     },
     {
-      "id": "84716dc4-5dc0-4e29-8927-9054c6e27d27",
+      "id": "f1d3b960-84b7-45f7-8375-6e1c9b1887b0",
       "source": "claim:cce29eea071a",
       "target": "skill:kubernetes",
       "relation": "contradicts",
       "weight": 0.95
     },
     {
-      "id": "ef1d731d-7f43-4e7a-86cb-947d6468b231",
+      "id": "9da04312-ebb8-451b-8269-66ace93ccceb",
       "source": "person:candidate",
       "target": "skill:fastapi",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "9d61c6de-2d40-4445-abf3-0bc7e208db6e",
+      "id": "3b02a3f9-fbbd-4723-ad38-7a44621a3e52",
       "source": "person:candidate",
       "target": "skill:postgresql",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "863b7221-09cf-47c6-a532-1c99d929114b",
+      "id": "d492df93-3387-4e8c-8f43-dd5d6003f7d5",
       "source": "claim:511a4083e22b",
       "target": "skill:fastapi",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "7d0ddf30-c1d1-4ec5-8ff4-f887bd4ddcb2",
+      "id": "232f23ea-a0f8-4196-95ca-1cc91f0ff17c",
       "source": "claim:511a4083e22b",
       "target": "skill:postgresql",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "f1def418-97da-4639-bc93-27d6e4f7a30d",
+      "id": "7f297bbc-180e-4377-81c2-136fbb31e6fb",
       "source": "person:candidate",
       "target": "skill:pytest",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "86a2986f-d5d3-415f-889b-38dfe6dede19",
+      "id": "1b92f94c-29bb-473e-97d6-91855e19bd8e",
       "source": "claim:b68b337fc08a",
       "target": "skill:pytest",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "39286ee1-db16-4b78-9e45-b3275d938c55",
+      "id": "a55ab165-6642-44a9-901b-280612c05158",
       "source": "claim:e15b5e51d5eb",
       "target": "skill:kubernetes",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "f0bd343d-ee31-4476-a0b7-fa326d66ed6c",
+      "id": "85852dc2-0bf3-4add-b067-3a4084bb4526",
       "source": "claim:e15b5e51d5eb",
       "target": "skill:redis",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "1d15f6ce-8480-4f78-a334-37faff05f69a",
+      "id": "77ec8db1-ff87-44ba-90c9-871790217ccc",
       "source": "person:candidate",
       "target": "skill:helm",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "168caa9e-5bc3-4029-a60d-3d3bca859685",
+      "id": "26c5393a-a296-4445-83de-0419cc69046a",
       "source": "claim:8a0c5e3ea18b",
       "target": "skill:helm",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "fc869ff8-fb33-4aff-859e-32617b6c1f61",
+      "id": "c00bb021-2d96-4418-bc1a-c01b273e191b",
       "source": "claim:3693ae079e8a",
       "target": "skill:postgresql",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "3a756e6c-775c-4cf9-a9dd-2351b6c9d142",
+      "id": "0aaa2bdb-dc67-45d1-be76-e8bf8069afc7",
       "source": "claim:b5f069bff74b",
       "target": "skill:grafana",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "ec45b726-f0e4-44ec-829d-325e56e7e4d7",
+      "id": "57a6ec9d-1318-401d-be44-d4d4ffd74af3",
       "source": "claim:cfc21318ff71",
       "target": "skill:github-actions",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "61a5a353-d4c0-408f-a74a-00f4983c073c",
+      "id": "42d0563a-07ae-4745-ae8e-fc01c0e4eb76",
       "source": "person:candidate",
       "target": "skill:aws",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "022f14b6-7881-467b-9055-093c507999ee",
+      "id": "14d42f86-6020-4822-bfda-1c5746f69837",
       "source": "person:candidate",
       "target": "skill:docker",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "147dab4e-1b97-431a-937a-77b03a623852",
+      "id": "04e57f9a-5f8e-4d26-aa95-5149ec91c368",
       "source": "person:candidate",
       "target": "skill:terraform",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "97ac17f4-f730-4a17-b014-7356c4eec203",
+      "id": "dcdd6d5c-27a5-406e-88f0-fb856ab5ec66",
       "source": "claim:78dd592eb483",
       "target": "skill:aws",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "0698e81b-c4cf-4662-993c-f1a5909e2eb0",
+      "id": "b97c334e-885a-40b9-9b02-d855fbc193be",
       "source": "claim:78dd592eb483",
       "target": "skill:docker",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "840b448c-0467-407c-8785-b040e4b766c7",
+      "id": "395f7057-7276-4c8f-a639-f73a9c5b5818",
       "source": "claim:78dd592eb483",
       "target": "skill:terraform",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "0cc81112-2a53-494e-a8f3-be91d8f13ad8",
+      "id": "abaeb4e4-435f-452d-a2bd-cb3b482cc23f",
       "source": "claim:8188a48f06ef",
       "target": "skill:kafka",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "dcc90e06-afb1-43ce-a1fb-9ec5218dc27d",
+      "id": "79732c08-618b-4f00-83a2-70e633adff22",
       "source": "claim:8188a48f06ef",
       "target": "skill:microservices",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "8a1fc86f-932a-4985-a409-0b581a862432",
+      "id": "70a2a560-85b9-4a4c-b03a-ed115b0a8731",
       "source": "claim:ff67eee62499",
       "target": "skill:aws",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "b42a05ee-cd0c-464b-8d08-bdfe993ca79f",
+      "id": "74462d1b-1aac-4d95-b2cf-6c81f0e33440",
       "source": "claim:ff67eee62499",
       "target": "skill:docker",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "6606db0a-13d4-4489-9c28-413cd15a075b",
+      "id": "87e28795-a08a-4021-9097-08bd41e7acb7",
       "source": "claim:75945bc971fe",
       "target": "skill:sqlalchemy",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "ef607abd-4c2b-409d-8f0f-9b976b3fe7c9",
+      "id": "de1cdeaf-8831-4b89-8188-9c2fe3e807b3",
       "source": "person:candidate",
       "target": "skill:sqlalchemy",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "014fca2d-a73f-44f8-b492-7f26c41959ad",
+      "id": "44807dd5-2864-4a74-b644-c1834d47c34a",
       "source": "claim:75945bc971fe",
       "target": "skill:pydantic",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "4c208e3e-ff3a-4587-9d9d-2dd2f76c09c5",
+      "id": "a35e3c2c-225c-4d07-9823-b6bb26a1bef5",
       "source": "person:candidate",
       "target": "skill:pydantic",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "bd046b06-2162-40c1-ace3-73affc0d0be2",
+      "id": "a826318c-da9f-4698-81ba-f8786ac4ddf7",
       "source": "claim:fd6a9552a3b3",
       "target": "skill:pytest",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "9ca9d187-a376-42b1-9315-2549d0f21098",
+      "id": "5704c555-07bd-4986-95c2-b25ac735d472",
       "source": "person:candidate",
       "target": "skill:redis",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "4e357b5c-03f6-4e8e-8843-1df5798be714",
+      "id": "65deed6e-0786-46b7-8ac5-0ccd4b676e32",
       "source": "claim:e15b5e51d5eb",
       "target": "skill:celery",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "9b5b3b68-e91f-401f-8697-b4e2dd7d915f",
+      "id": "c7748552-4ca0-4bb7-a465-db7ea5d4d5f1",
       "source": "person:candidate",
       "target": "skill:celery",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "29c3a93a-119c-4ca9-848a-88792cfcce46",
+      "id": "1de4c769-771a-491e-9033-37712f558a8a",
       "source": "person:candidate",
       "target": "skill:kubernetes",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "9b978962-2def-446d-a7dc-3037aba52012",
+      "id": "cc11845b-aa93-4363-8b73-a683ca6d6a4d",
       "source": "claim:b5066879e7b5",
       "target": "skill:pgbouncer",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "8cb0b4d8-1e66-4cf5-8a26-b7f141dd5920",
+      "id": "69f355e1-cf82-42b5-b47c-a5cb490624e2",
       "source": "person:candidate",
       "target": "skill:pgbouncer",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "2a91abbd-04e0-4a04-a906-4122e66e6eb7",
+      "id": "0b2d312a-303e-454f-864d-40fb10e68786",
       "source": "claim:b5066879e7b5",
       "target": "skill:grafana",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "33bc3b21-10b6-4611-aa42-e8f26c0b25da",
+      "id": "119de845-28f0-4ecd-9bee-7b3c46dfcfb5",
       "source": "person:candidate",
       "target": "skill:grafana",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "3a9577b8-2e17-4d51-821c-b69ff9a83828",
-      "source": "claim:a4eec48aa029",
-      "target": "skill:grafana",
-      "relation": "supports",
-      "weight": 0.9
-    },
-    {
-      "id": "13d8c0ad-96e7-42c6-a708-545113e605f2",
+      "id": "5972ddd8-b1c3-481a-b20e-59e085078646",
       "source": "claim:e1f74906364e",
       "target": "skill:github-actions",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "e31abc3d-cfdb-4f1a-9032-2c16a81ff227",
+      "id": "76890012-85c0-4b77-a0f7-e3168dfc9902",
       "source": "person:candidate",
       "target": "skill:github-actions",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "bbe22b11-a8d9-421c-87ef-b05e52395ec8",
+      "id": "a8225e70-66de-47f0-903a-721bf9f5879d",
       "source": "claim:e1f74906364e",
       "target": "skill:docker",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "5c5c332a-e4f7-4634-a5ab-0e9aed34bde8",
-      "source": "claim:a15f259ff4c0",
+      "id": "93d0ea31-4236-448e-8659-4b3adc0905e6",
+      "source": "claim:378696247fbb",
+      "target": "skill:trivy",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "8ebf9e7e-c045-4a2e-ad68-6d31f657b8a1",
+      "source": "person:candidate",
+      "target": "skill:trivy",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "9bef8312-0813-4375-902a-4ea78f588abc",
+      "source": "claim:378696247fbb",
       "target": "skill:terraform",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "ec48c75c-bda1-481b-8bdc-0b719c624c89",
-      "source": "claim:a15f259ff4c0",
+      "id": "f9fc8cbd-2b50-45c4-8855-a784c08362e4",
+      "source": "claim:378696247fbb",
       "target": "skill:aws",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "5f24f3ef-2c6f-4122-bb5f-27257a1e6feb",
-      "source": "claim:a15f259ff4c0",
+      "id": "07127be7-2784-43fd-aa49-fc9fb6955463",
+      "source": "claim:378696247fbb",
       "target": "skill:eks",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "093a69f4-663e-4a26-acfd-fd57b1012b85",
+      "id": "3ad6be74-4289-42c5-8e0f-107386a06db1",
       "source": "person:candidate",
       "target": "skill:eks",
       "relation": "supports",
       "weight": 0.9
     },
     {
-      "id": "2840fcd6-66ab-457e-900f-b4ccc8a23f9d",
+      "id": "7fe33298-6c5a-419d-8fb5-3d7d96dee3d9",
+      "source": "person:candidate",
+      "target": "skill:kafka",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "a045bbb0-d373-41b5-9bad-ff765ab1f332",
+      "source": "person:candidate",
+      "target": "skill:microservices",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "03c372be-c0fd-4c33-bcbe-c1281ce9eedb",
       "source": "person:candidate",
       "target": "skill:python",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "22936593-3fc0-47ef-819e-df1ff04729dd",
+      "id": "0f8aad60-6628-451f-8d5a-9436f7f3680e",
       "source": "person:candidate",
       "target": "skill:aws",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "48c12c10-2af3-4502-984d-d78155f2a14b",
+      "id": "aa5ae770-f67b-410d-9c33-54d78d2288a7",
       "source": "person:candidate",
       "target": "skill:docker",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "c5906c5b-665d-405a-898f-41f15d6a4786",
+      "id": "70bbda21-e4cc-4e35-ad32-0a408b50ffa6",
       "source": "person:candidate",
       "target": "skill:fastapi",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "7c5dbf01-9929-4fc7-8149-62b7c0914423",
+      "id": "2d40d5a3-b429-4275-ac42-ce5feb87089f",
       "source": "person:candidate",
       "target": "skill:github-actions",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "ae9a17d8-9220-4cf3-8f59-5139efa94a08",
+      "id": "303740c8-d1e2-4c1b-aaff-cf8688afa317",
       "source": "person:candidate",
       "target": "skill:kafka",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "0c4c75b1-2b0b-4347-a1b7-479387cb7be7",
+      "id": "41bede9e-43ad-41f9-8805-d1b4934e93b2",
       "source": "person:candidate",
       "target": "skill:kubernetes",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "6cab7435-445d-4578-af50-ca7e4926d9b4",
+      "id": "29cd650b-cfda-4af5-a8ef-58cc5b52816d",
       "source": "person:candidate",
       "target": "skill:postgresql",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "03012bde-1e8d-4521-be1e-f6e66cd97cd2",
+      "id": "108047ea-d4f5-4c5c-9ae7-1d8fc98aef82",
       "source": "person:candidate",
       "target": "skill:redis",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "005ff48e-5181-4f4c-a5cf-e74f07b65242",
+      "id": "34d71db3-1921-496c-a2bf-0e7ee17bd2b2",
       "source": "person:candidate",
       "target": "skill:terraform",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "66cb19f6-c197-4a1d-9183-e0ebbfd0e386",
+      "id": "a1531e73-47e3-4a57-96a3-1c0cf5b878de",
       "source": "person:candidate",
       "target": "skill:django",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "7d248161-1974-4ac9-86e9-ccd9c717bc62",
+      "id": "fb28610c-0dfe-4979-913e-26322ce63edc",
       "source": "person:candidate",
       "target": "skill:grafana",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "88ffc87f-d579-4938-ba9d-9e982af0607e",
+      "id": "53229ab3-a542-4713-bca3-36c715e790f5",
       "source": "person:candidate",
       "target": "skill:graphql",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "068103e2-f967-49af-bd62-86911b56def6",
+      "id": "b59eb9a1-d8e0-4468-9183-2a082b575bc7",
       "source": "person:candidate",
       "target": "skill:mongodb",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "24a7ad95-d978-4579-9970-561bcbe975b8",
+      "id": "fe845f1d-83d0-476c-b2fc-48d7a5b786bb",
       "source": "person:candidate",
       "target": "skill:pytest",
       "relation": "has_skill",
       "weight": 0.9
     },
     {
-      "id": "c43e755b-5c93-4f7f-b684-090eef5c97d2",
+      "id": "f5b9d6ab-0bc2-4c44-a18d-bc50cc615a5c",
       "source": "person:candidate",
       "target": "entity:pune-university",
       "relation": "studied_at",
       "weight": 0.8
     },
     {
-      "id": "7ba0b852-027a-4b07-85ba-913e1440c4ee",
+      "id": "d233f3af-f4ec-4164-8374-178cc8bc0e98",
       "source": "person:candidate",
       "target": "claim:511a4083e22b",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "4b2c587b-ee9b-4e0b-a29f-dd6edace2e8e",
+      "id": "751a006b-e9c5-48b7-9fd5-923497b1938f",
       "source": "person:candidate",
       "target": "claim:b68b337fc08a",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "5d7f8ec8-d62e-4ccd-b472-bf87cbb48f9e",
+      "id": "c2f7a1ea-fb74-4e3f-8257-5957f96dcf10",
       "source": "person:candidate",
       "target": "skill:kubernetes",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "b7a049e2-8306-4ae1-9e2f-40dc125abd8a",
+      "id": "2adb409d-a458-47c1-9338-f48597e9553d",
       "source": "person:candidate",
       "target": "skill:redis",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "63d9cd8c-5025-46ef-8516-61ed9d97ff04",
+      "id": "e355e573-d876-4ebe-ab8a-b5fac5c23d03",
       "source": "person:candidate",
       "target": "claim:e15b5e51d5eb",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "6508d8b0-6775-4fb2-bcc5-0a7a6233020e",
+      "id": "94a22ba0-068e-4df9-9b68-b4bbb0a27646",
       "source": "person:candidate",
       "target": "claim:8a0c5e3ea18b",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "c6028612-af4b-423a-bcf2-b8e8a6c5cd1c",
+      "id": "7617d7b6-1b6e-4715-a999-ea588fe38c1a",
       "source": "person:candidate",
       "target": "skill:postgresql",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "e46b01d7-a4bf-481f-8f0f-226c5e61ac61",
+      "id": "16be34a6-4ae8-4cb1-8edd-0efeec6c6255",
       "source": "person:candidate",
       "target": "claim:3693ae079e8a",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "cef0850d-ecce-4750-b2b5-7795b164375c",
+      "id": "71f34317-5c3b-4942-ac39-a71d34e69cc0",
       "source": "person:candidate",
       "target": "skill:grafana",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "55e95192-9bc1-4fce-b2f2-92d881814689",
+      "id": "29451c22-44d4-4af6-810b-9540960fbb6d",
       "source": "person:candidate",
       "target": "claim:b5f069bff74b",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "cdd8b1ac-963d-4fc9-ba2d-d921c64b3319",
+      "id": "d2f97ec7-c47c-4619-be98-ac1ed7af63fc",
       "source": "person:candidate",
       "target": "skill:github-actions",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "d016fe63-bc63-419d-9e94-8dba7713fc1d",
+      "id": "4f6abdc9-4f30-4f33-bacd-63afce13b98d",
       "source": "person:candidate",
       "target": "claim:cfc21318ff71",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "3ccbfb0a-7180-4104-bde9-1fa55e2acf9a",
+      "id": "ea53e028-22fc-4d3e-bb81-fdcc4bbce008",
       "source": "person:candidate",
       "target": "claim:78dd592eb483",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "9c314cfe-2d38-4ac7-a244-8d64b3cecb7f",
+      "id": "44e6ea45-f1e1-4eeb-8bdc-e8ce41f5f585",
       "source": "person:candidate",
       "target": "skill:kafka",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "f2385b8e-c72a-4c48-b520-ccd1463928b2",
+      "id": "fc20c8ea-70ab-473f-a10c-faf25793a08e",
       "source": "person:candidate",
       "target": "skill:microservices",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "d61a3015-92ab-4314-94ca-9a5e274d72a9",
+      "id": "f7524c38-c435-4bcf-9437-2ec2208069ff",
       "source": "person:candidate",
       "target": "claim:8188a48f06ef",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "be3ad13c-6e7f-4cd4-a74a-7b7eb9bb427a",
+      "id": "8e271b7c-136d-4e12-a727-eda23e5c5eaa",
       "source": "person:candidate",
       "target": "claim:cce29eea071a",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "3f7f3c35-1296-48b3-8f89-72a35952b9c8",
+      "id": "cf2114b4-d700-46f1-9c0f-b675109039bc",
       "source": "person:candidate",
       "target": "claim:ff67eee62499",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "e3ae5a6b-17c4-4625-8889-e5dafd891bd2",
+      "id": "7c58ca25-7b6c-4e36-a9bc-4764885b4c49",
       "source": "person:candidate",
       "target": "claim:75945bc971fe",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "32bfd3da-9488-4fc6-a171-571250d11410",
+      "id": "09b72808-5b2b-4f5a-8be7-35bae0f4febe",
       "source": "person:candidate",
       "target": "claim:fd6a9552a3b3",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "6a119fad-9036-4147-b8da-72d559eab61a",
+      "id": "e18e6c96-7ad5-4c01-8135-8dd324120239",
       "source": "person:candidate",
       "target": "claim:b5066879e7b5",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "96b0fe8c-12ab-4554-b7f2-7842b17c36dd",
-      "source": "person:candidate",
-      "target": "claim:a4eec48aa029",
-      "relation": "mentions",
-      "weight": 0.6
-    },
-    {
-      "id": "8de7eae2-92c6-44c1-bc3e-70524477532c",
+      "id": "b6ad5f16-30f5-4ae6-b34a-5177062ff37e",
       "source": "person:candidate",
       "target": "claim:e1f74906364e",
       "relation": "mentions",
       "weight": 0.6
     },
     {
-      "id": "1df6e525-7b34-415b-882f-5d4d934091b9",
+      "id": "f20a6e3e-1c94-4131-9b9d-cf023e8c75a5",
       "source": "person:candidate",
-      "target": "claim:a15f259ff4c0",
+      "target": "claim:378696247fbb",
       "relation": "mentions",
       "weight": 0.6
     }

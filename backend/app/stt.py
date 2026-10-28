@@ -284,6 +284,20 @@ def _prompt_echo(text: str, prompt: str | None) -> bool:
     return False
 
 
+def base_prompt_for_echo() -> str | None:
+    """Static base prompt only, for the echo guard.
+
+    Dynamic continuation context (the previous utterance tail passed as prompt)
+    is deliberately excluded: when speech continues across a chunk boundary the
+    output legitimately repeats those words, and `remove_overlap` strips that
+    repetition. The echo guard must not reject such continuations.
+    """
+    if not settings.stt_use_prompt:
+        return None
+    base = _normalize(settings.stt_prompt or "")
+    return base or None
+
+
 def is_hallucination(text: str, prompt: str | None = None, avg_logprob: float | None = None) -> bool:
     """Conservative text filter. Returns True when the text must be discarded."""
     t = _normalize(text)
@@ -577,7 +591,8 @@ class GroqSTT:
         max_nsp = max(float(s.get("no_speech_prob") or 0.0) for s in kept)
         return text, kept, avg_lp, max_nsp
 
-    def _attempt(self, prepared, model: str, prompt: str | None) -> STTResult:
+    def _attempt(self, prepared, model: str, prompt: str | None,
+                 echo_prompt: str | None = None) -> STTResult:
         started = time.time()
         data = self._request(prepared.wav, model, prompt)
         text, segments, avg_lp, nsp = self._filter_segments(data)
@@ -596,7 +611,7 @@ class GroqSTT:
             latency_ms=latency,
             segments=segments,
         )
-        if not text or is_hallucination(text, prompt, avg_lp):
+        if not text or is_hallucination(text, echo_prompt if echo_prompt is not None else prompt, avg_lp):
             result.status = "hallucination"
             result.reason = "segment_filter" if not text else "text_filter"
             return result
@@ -617,7 +632,9 @@ class GroqSTT:
             return STTResult(status="no_speech", reason=prepared.reason, duration_ms=prepared.duration_ms, speech_ms=prepared.speech_ms, snr_db=prepared.snr_db)
 
         prompt = self._prompt(prompt)
-        result = self._attempt(prepared, self.model, prompt)
+        # Echo guard sees the static base prompt only (see base_prompt_for_echo).
+        echo_ref = base_prompt_for_echo()
+        result = self._attempt(prepared, self.model, prompt, echo_prompt=echo_ref)
 
         # Verify suspicious turbo output with the slower/more accurate model.
         if (
@@ -628,7 +645,7 @@ class GroqSTT:
             and settings.stt_fallback_model != self.model
         ):
             try:
-                alt = self._attempt(prepared, settings.stt_fallback_model, prompt)
+                alt = self._attempt(prepared, settings.stt_fallback_model, prompt, echo_prompt=echo_ref)
                 if alt.status == "ok":
                     alt.reason = "verified"
                     return alt
@@ -639,7 +656,7 @@ class GroqSTT:
             # The fast model may hallucinate where the accurate model does not.
             if settings.stt_fallback_model and settings.stt_fallback_model != self.model:
                 try:
-                    alt = self._attempt(prepared, settings.stt_fallback_model, prompt)
+                    alt = self._attempt(prepared, settings.stt_fallback_model, prompt, echo_prompt=echo_ref)
                     if alt.status == "ok":
                         alt.reason = "fallback_model"
                         return alt
@@ -685,7 +702,7 @@ class FasterWhisperSTT:
             except OSError:
                 pass
         text = " ".join(texts).strip()
-        status = "ok" if text and not is_hallucination(text, prompt) else "hallucination"
+        status = "ok" if text and not is_hallucination(text, base_prompt_for_echo()) else "hallucination"
         return STTResult(
             text=text if status == "ok" else "",
             raw=text,

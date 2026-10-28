@@ -227,6 +227,13 @@ async def _process_audio(
         return
 
     hint = await _stt_context(room_id)
+    # Continuation context: the tail of this speaker's previous utterance helps
+    # Whisper keep casing/punctuation coherent when a chunk starts mid-thought.
+    # Echoes of this tail in the output are expected and stripped downstream by
+    # remove_overlap — which is why the echo guard checks the base prompt only.
+    tail = (_last_utterance.get((room_code, speaker)) or "")[-220:]
+    if tail:
+        hint = f"{hint} {tail}".strip() if hint else tail
 
     async with _AUDIO_SEM:
         try:
@@ -386,6 +393,12 @@ async def ws_endpoint(code: str, websocket: WebSocket, name: str = "Guest"):
                 "name": name,
                 "role": role,
                 "stt": {"model": settings.stt_model, "fallback": settings.stt_fallback_model},
+                # VAD chunking config so the browser worklet and the server
+                # tuning stay in sync without a frontend rebuild.
+                "vad": {
+                    "endpoint_silence_ms": settings.stt_endpoint_silence_ms,
+                    "max_chunk_ms": settings.stt_max_chunk_ms,
+                },
                 # Room state snapshot so a recovered client continues exactly
                 # where the meeting left off.
                 "recording": bool(_recording_state.get(code, False)),

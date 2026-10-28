@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     # safe = deterministic cleanup only, llm = guarded LLM polish, off = none
     stt_cleanup: str = "llm"
     stt_min_speech_ms: int = 320
+    # ---- Browser VAD chunking (sent to the client in the WS join snapshot) ----
+    # Cut an utterance after this much silence. 480 ms was too aggressive: a
+    # mid-sentence thinking pause split sentences across chunks and Whisper
+    # transcribed the fragments without context ("jumbled" text). 1200 ms
+    # rides out normal hesitations while keeping captions responsive.
+    stt_endpoint_silence_ms: int = 1200
+    # Hard cap so a continuous monologue still gets transcribed incrementally
+    # instead of buffering for minutes.
+    stt_max_chunk_ms: int = 15000
     stt_logprob_threshold: float = -1.10
     stt_no_speech_threshold: float = 0.55
     stt_compression_ratio_threshold: float = 2.4

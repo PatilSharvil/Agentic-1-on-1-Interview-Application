@@ -18,7 +18,22 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.silenceMs = 0
     this.speechMs = 0
     this.noise = 0.0025
-    this.port.onmessage = (e) => { if (e.data === 'flush') this.emit(true) }
+    // Endpointing: how much silence ends an utterance, and the hard cap that
+    // keeps a continuous monologue flowing. The server can retune both at
+    // runtime via a {type:'config'} message (see the WS join snapshot).
+    this.endpointSilenceMs = 1200
+    this.maxChunkMs = 15000
+    this.port.onmessage = (e) => {
+      if (e.data === 'flush') this.emit(true)
+      else if (e.data && e.data.type === 'config') {
+        if (typeof e.data.endpointSilenceMs === 'number' && e.data.endpointSilenceMs >= 200) {
+          this.endpointSilenceMs = e.data.endpointSilenceMs
+        }
+        if (typeof e.data.maxChunkMs === 'number' && e.data.maxChunkMs >= 3000) {
+          this.maxChunkMs = e.data.maxChunkMs
+        }
+      }
+    }
   }
   rms(frame) {
     let sum = 0
@@ -48,11 +63,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
       this.silenceMs = 0
       this.speechMs += this.frameMs
       this.buf.push(frame)
+      // The cap must also fire while voiced: a speaker who never pauses would
+      // otherwise buffer forever and their transcript would never appear.
+      if (this.buf.length * this.frameMs >= this.maxChunkMs) this.emit(false)
     } else if (this.inSpeech) {
       this.buf.push(frame)
       this.silenceMs += this.frameMs
       // End the utterance only on a real pause, so words are never cut in half.
-      if ((this.silenceMs >= 480 && this.speechMs >= 320) || this.buf.length * this.frameMs >= 11000) {
+      if ((this.silenceMs >= this.endpointSilenceMs && this.speechMs >= 320) || this.buf.length * this.frameMs >= this.maxChunkMs) {
         this.emit(false)
       }
     } else {
@@ -66,6 +84,9 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const chunks = this.buf
     const speechMs = this.speechMs
     this.buf = []
+    // Stale pre-roll would duplicate audio into the next chunk after a
+    // max-length cut mid-speech (pre-roll only refreshes during silence).
+    this.preRoll = []
     this.inSpeech = false
     this.silenceMs = 0
     this.speechMs = 0
@@ -159,6 +180,9 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
   const captureEpochRef = useRef<number>(0)
   const seqRef = useRef(0)
   const roleRef = useRef('guest')
+  // VAD chunking config delivered in the WS join snapshot; applied to the
+  // worklet when capture starts (and re-applied on every capture start).
+  const vadRef = useRef<{ endpointSilenceMs?: number; maxChunkMs?: number }>({})
   const sendQueueRef = useRef<Promise<void>>(Promise.resolve())
   const transcriptEndRef = useRef<HTMLDivElement>(null)
   const seenTranscriptIds = useRef<Set<string>>(new Set())
@@ -200,6 +224,10 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     await ctx.audioWorklet.addModule(url)
     URL.revokeObjectURL(url)
     const node = new AudioWorkletNode(ctx, 'recorder-processor')
+    // Apply the server's VAD tuning (endpoint silence / max chunk length).
+    if (vadRef.current.endpointSilenceMs || vadRef.current.maxChunkMs) {
+      node.port.postMessage({ type: 'config', ...vadRef.current })
+    }
     node.port.onmessage = (e) => {
       const data = e.data
       if (data?.type === 'chunk' && Array.isArray(data.chunks)) {
@@ -369,6 +397,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
               case 'joined': {
                 if (data.role) setRole(data.role)
                 if (data.stt) setModelInfo(`${data.stt.model} → ${data.stt.fallback}`)
+                if (data.vad) vadRef.current = data.vad
                 // Room state snapshot: recording flag survives a refresh.
                 if (typeof data.recording === 'boolean') setRecording(data.recording)
                 const others = (data.participants || []).filter((p: any) => p.name !== name)

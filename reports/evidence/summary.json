@@ -1,10 +1,10 @@
 {
-  "code": "CF3S7WKX",
+  "code": "5668XNQR",
   "results": [
     {
       "step": "host created room via UI",
       "ok": true,
-      "detail": "code=CF3S7WKX"
+      "detail": "code=5668XNQR"
     },
     {
       "step": "ws probe joined room",
@@ -29,7 +29,7 @@
     {
       "step": "Q1 asked via wav -> transcript",
       "ok": true,
-      "detail": "sim=1.00"
+      "detail": "sim=0.95"
     },
     {
       "step": "A1 answered via wav -> transcript",
@@ -39,7 +39,7 @@
     {
       "step": "adaptive follow-up after A1",
       "ok": true,
-      "detail": "source=adaptive answer-overlap=['and', 'api', 'fastapi', 'payments']"
+      "detail": "source=adaptive answer-overlap=['and', 'fastapi', 'the']"
     },
     {
       "step": "Q2 asked via wav -> transcript",
@@ -54,12 +54,12 @@
     {
       "step": "adaptive follow-up after A2",
       "ok": true,
-      "detail": "source=adaptive answer-overlap=['and', 'celery', 'kubernetes', 'latency']"
+      "detail": "source=adaptive answer-overlap=['and', 'helm', 'the']"
     },
     {
       "step": "Q3 asked via wav -> transcript",
       "ok": true,
-      "detail": "sim=0.94"
+      "detail": "sim=1.00"
     },
     {
       "step": "A3 answered via wav -> transcript",
@@ -84,12 +84,12 @@
     {
       "step": "adaptive follow-up after A4",
       "ok": true,
-      "detail": "source=adaptive answer-overlap=['and', 'builds', 'docker', 'multi']"
+      "detail": "source=adaptive answer-overlap=['actions', 'and', 'github', 'the']"
     },
     {
       "step": "Q5 asked via wav -> transcript",
       "ok": true,
-      "detail": "sim=1.00"
+      "detail": "sim=0.89"
     },
     {
       "step": "A5 answered via wav -> transcript",
@@ -99,12 +99,12 @@
     {
       "step": "adaptive follow-up after A5",
       "ok": true,
-      "detail": "source=adaptive answer-overlap=['and', 'feature', 'flags', 'the']"
+      "detail": "source=adaptive answer-overlap=['and', 'feature', 'microservices', 'prototype']"
     },
     {
       "step": "final adaptive question asked via wav -> transcript",
       "ok": true,
-      "detail": "sim=1.00"
+      "detail": "sim=0.89"
     },
     {
       "step": "contradiction answer -> transcript",
@@ -114,12 +114,12 @@
     {
       "step": "graph rebuild from resume + transcript (UI)",
       "ok": true,
-      "detail": "Graph rebuilt: 41 nodes \u00b7 86 edges."
+      "detail": "Graph rebuilt: 41 nodes \u00b7 88 edges."
     },
     {
       "step": "knowledge graph page renders nodes",
       "ok": true,
-      "detail": "\u25cf LIVE \u00b7 41 NODES \u00b7 86 EDGES"
+      "detail": "\u25cf LIVE \u00b7 41 NODES \u00b7 88 EDGES"
     },
     {
       "step": "all resume skills present as graph nodes",
@@ -134,7 +134,7 @@
     {
       "step": "claims extracted from answers",
       "ok": true,
-      "detail": "17 claim nodes"
+      "detail": "16 claim nodes"
     },
     {
       "step": "contradiction (never ran k8s) produced a contradicts edge",
@@ -155,141 +155,141 @@
   "timeline": [
     {
       "speaker": "Interviewer",
-      "text": "Question 1. How did you architect the FastAPI Payments API to handle 2M requests per day, and what scaling strategies did you employ?",
-      "sim": 1.0,
+      "text": "Question 1. What architectural decisions led you to choose FastAPI over Django for the payments API at Finlaytix, and how did you handle request validation and serialization?",
+      "sim": 0.95,
       "model": "whisper-large-v3",
-      "latency_ms": 808,
-      "t": "11:36:43"
+      "latency_ms": 1276,
+      "t": "14:00:04"
     },
     {
       "speaker": "Candidate",
       "text": "At Finlytics I built the Payments API with FastAPI and PostgreSQL. It processes about 2 million requests per day. I used SQLAlchemy async sessions and Pydantic schemas, and the pytest suite covers 85% of the code.",
       "sim": 0.93,
       "model": "whisper-large-v3",
-      "latency_ms": 889,
-      "t": "11:36:45"
+      "latency_ms": 913,
+      "t": "14:00:06"
     },
     {
       "speaker": "Interviewer",
-      "text": "Question 2. Can you walk through the Redis caching strategy you implemented for the Payments API and explain how it reduced P95 latency?",
+      "text": "Question 2. Can you walk through the Redis caching strategy you implemented to reduce P95 latency, including key design and eviction policies?",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 825,
-      "t": "11:37:03"
+      "latency_ms": 1210,
+      "t": "14:00:25"
     },
     {
       "speaker": "Candidate",
       "text": "We scaled the service with Redis caching and Celery workers running on Kubernetes. I wrote the Helm charts myself and tuned the auto scaling based on P95 latency. That cut the P95 from 900 milliseconds down to 120 milliseconds.",
       "sim": 0.96,
       "model": "whisper-large-v3",
-      "latency_ms": 1187,
-      "t": "11:37:04"
+      "latency_ms": 1035,
+      "t": "14:00:28"
     },
     {
       "speaker": "Interviewer",
-      "text": "Question 3. Describe the Terraform configuration you used to deploy the Kubernetes cluster on AWS EKS for Finlaytix. What challenges did you face?",
-      "sim": 0.94,
+      "text": "Question 3. Describe how you migrated Finlytics deployments to EKS using Terraform. What modules did you write and how did you manage secrets and IAM roles?",
+      "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 920,
-      "t": "11:37:22"
+      "latency_ms": 1330,
+      "t": "14:00:47"
     },
     {
       "speaker": "Candidate",
       "text": "During one outage I traced the problem to connection pool exhaustion in PostgreSQL. I added pgBouncer in front of the database and set up Grafana dashboards with alerting so we would catch it earlier next time.",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 832,
-      "t": "11:37:24"
+      "latency_ms": 789,
+      "t": "14:00:48"
     },
     {
       "speaker": "Interviewer",
-      "text": "Question 4. What was your role in designing the Kafka ingestion pipelines at DataHive, and how did you ensure reliability and fault tolerance?",
+      "text": "Question 4. How did you structure the Kafka ingestion pipelines at DataHive, and what techniques did you use to ensure message ordering and fault tolerance?",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 752,
-      "t": "11:37:42"
+      "latency_ms": 1193,
+      "t": "14:01:08"
     },
     {
       "speaker": "Candidate",
       "text": "I own the GitHub Actions pipeline. Docker images are built with multi-stage builds, scanned with Trivy, and deployed with Terraform to AWS EKS. Every merge to main goes out automatically.",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 1168,
-      "t": "11:37:44"
+      "latency_ms": 952,
+      "t": "14:01:11"
     },
     {
       "speaker": "Interviewer",
-      "text": "Question 5. Explain the multi-stage Docker build process you set up in GitHub Actions for DataHive. How did it improve build times or security?",
-      "sim": 1.0,
+      "text": "Question 5. Explain the multistage Docker build process you configured in GitHub Actions, including any caching strategies and how you verified build reproducibility.",
+      "sim": 0.89,
       "model": "whisper-large-v3",
-      "latency_ms": 930,
-      "t": "11:38:02"
+      "latency_ms": 1377,
+      "t": "14:01:30"
     },
     {
       "speaker": "Candidate",
       "text": "Early at DataHive, I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug. I learned to measure first, and now I prototype behind feature flags before committing.",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 1107,
-      "t": "11:38:04"
+      "latency_ms": 898,
+      "t": "14:01:33"
     },
     {
       "speaker": "Interviewer",
-      "text": "Question 6. Can you describe how you implemented feature flags for the new payment endpoint, including the flag management tool you used and how you monitored its impact on traffic and error rates?",
-      "sim": 1.0,
+      "text": "Question 6. Can you describe the feature flag strategy you use to prototype new microservices, including the tooling and how you ensure safe rollouts?",
+      "sim": 0.89,
       "model": "whisper-large-v3",
-      "latency_ms": 1007,
-      "t": "11:38:22"
+      "latency_ms": 2847,
+      "t": "14:02:00"
     },
     {
       "speaker": "Candidate",
       "text": "To be honest, I have never actually run Kubernetes in production myself. At Finlytics, we used Docker Compose on a single AWS instance, and another team managed the EKS cluster.",
       "sim": 1.0,
       "model": "whisper-large-v3",
-      "latency_ms": 944,
-      "t": "11:38:24"
+      "latency_ms": 2769,
+      "t": "14:02:04"
     }
   ],
   "adaptive": [
     {
       "after_answer": 1,
-      "id": "690e582c-032d-4e0c-bf4c-131a85c772eb",
-      "text": "How did you instrument the FastAPI Payments API for observability, and what metrics did you expose to Grafana to monitor latency and error rates?",
+      "id": "7aeab6d2-ab30-48c2-8710-e5685a1d633b",
+      "text": "How did you instrument the FastAPI payment endpoints for observability, and what metrics or alerts did you set up to detect latency spikes or failures?",
       "source": "adaptive",
-      "parent_id": "d81e6662-ca8a-4f3b-b049-66a21d56b3c4",
-      "created_at": "2026-10-28T11:36:59"
+      "parent_id": "90d600fc-fea1-4d6e-99e1-8d93a1f619ed",
+      "created_at": "2026-10-28T14:00:21"
     },
     {
       "after_answer": 2,
-      "id": "61430dcb-43f8-4125-92a0-9f8c05c13b2a",
-      "text": "How did you configure the Kubernetes HPA for the Celery workers to react to the P95 latency metric, and what thresholds did you set?",
+      "id": "7a320460-438b-4c30-a693-2840874b3dea",
+      "text": "How did you validate the Helm chart deployments before rolling them out to production, and what rollback strategy did you implement if a deployment failed?",
       "source": "adaptive",
-      "parent_id": "690e582c-032d-4e0c-bf4c-131a85c772eb",
-      "created_at": "2026-10-28T11:37:18"
+      "parent_id": "7aeab6d2-ab30-48c2-8710-e5685a1d633b",
+      "created_at": "2026-10-28T14:00:42"
     },
     {
       "after_answer": 3,
-      "id": "ef80cb74-d4a1-46a3-b7fa-cbd397cc4817",
-      "text": "What were the specific configuration parameters you set for pgBouncer (pool size, timeout, etc.) to prevent connection pool exhaustion, and how did you validate their effectiveness?",
+      "id": "de00bf28-fc2b-49ad-aafe-0b468cbfbc73",
+      "text": "How did you configure pgBouncer\u2019s connection limits and pooling mode to prevent exhaustion, and what metrics did you monitor to validate its effectiveness?",
       "source": "adaptive",
-      "parent_id": "61430dcb-43f8-4125-92a0-9f8c05c13b2a",
-      "created_at": "2026-10-28T11:37:38"
+      "parent_id": "7a320460-438b-4c30-a693-2840874b3dea",
+      "created_at": "2026-10-28T14:01:04"
     },
     {
       "after_answer": 4,
-      "id": "9b685f11-7e09-4814-9631-bfade3ca0235",
-      "text": "How did you configure Trivy to scan for vulnerabilities in your multi-stage Docker builds, and what remediation steps did you take when high\u2011severity findings were detected?",
+      "id": "ac55dcc7-e0c1-4b30-9807-63ef48f0df96",
+      "text": "How do you handle failures in the Trivy image scans during the GitHub Actions workflow, and what remediation steps do you trigger when a vulnerability is detected?",
       "source": "adaptive",
-      "parent_id": "ef80cb74-d4a1-46a3-b7fa-cbd397cc4817",
-      "created_at": "2026-10-28T11:37:58"
+      "parent_id": "de00bf28-fc2b-49ad-aafe-0b468cbfbc73",
+      "created_at": "2026-10-28T14:01:26"
     },
     {
       "after_answer": 5,
-      "id": "4e4a7628-e867-47e4-b30e-324abe3db82f",
-      "text": "Can you describe how you implemented feature flags for the new payment endpoint, including the flag management tool you used and how you monitored its impact on traffic and error rates?",
+      "id": "b987b4fb-433e-480e-a3a4-3d4ade57fa54",
+      "text": "Can you describe the feature\u2011flag strategy you use to prototype new microservices, including the tooling and how you ensure safe roll\u2011outs?",
       "source": "adaptive",
-      "parent_id": "9b685f11-7e09-4814-9631-bfade3ca0235",
-      "created_at": "2026-10-28T11:38:18"
+      "parent_id": "ac55dcc7-e0c1-4b30-9807-63ef48f0df96",
+      "created_at": "2026-10-28T14:01:48"
     }
   ],
   "graph_samples": [
@@ -300,8 +300,8 @@
     },
     {
       "after": "answer 1",
-      "nodes": 24,
-      "edges": 32
+      "nodes": 19,
+      "edges": 24
     },
     {
       "after": "answer 2",
@@ -310,23 +310,23 @@
     },
     {
       "after": "answer 3",
-      "nodes": 32,
-      "edges": 54
+      "nodes": 30,
+      "edges": 52
     },
     {
       "after": "answer 4",
-      "nodes": 35,
-      "edges": 67
+      "nodes": 37,
+      "edges": 75
     },
     {
       "after": "answer 5",
-      "nodes": 38,
-      "edges": 77
+      "nodes": 42,
+      "edges": 84
     },
     {
       "after": "final rebuild",
       "nodes": 41,
-      "edges": 86
+      "edges": 88
     }
   ]
 }
