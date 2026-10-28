@@ -46,49 +46,44 @@ export default function GraphPage() {
   }, [code])
 
   return (
-    <div style={{ margin: 0, fontFamily: 'sans-serif', background: '#0b1020', color: '#e6e6e6', height: '100vh', overflow: 'hidden' }}>
-      <style>{`
-        .kg-link { stroke-opacity: 0.6; }
-        .kg-link.supports { stroke: #2ecc71; }
-        .kg-link.contradicts { stroke: #e74c3c; }
-        .kg-link.has_skill { stroke: #f1c40f; }
-        .kg-link.worked_at { stroke: #1abc9c; }
-        .kg-link.used_skill { stroke: #16a085; }
-        .kg-link.studied_at { stroke: #3498db; }
-        .kg-link.built_with { stroke: #e67e22; }
-        .kg-link.mentions { stroke: #95a5a6; }
-        .kg-link.includes { stroke: #5dade2; }
-        .kg-link.related { stroke: #8e6fd8; }
-        .kg-node text { font-size: 11px; fill: #e6e6e6; pointer-events: none; paint-order: stroke; stroke: #0b1020; stroke-width: 3px; }
-        .kg-node circle { cursor: grab; }
-        .kg-legend { position: fixed; top: 54px; right: 14px; background: rgba(8,12,26,0.85); padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; border: 1px solid #222a44; min-width: 150px; }
-        .kg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-        .kg-line { display: inline-block; width: 16px; height: 2px; margin-right: 6px; vertical-align: middle; }
-        .kg-empty { position: fixed; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: #7b86a8; font-size: 14px; text-align: center; padding: 24px; }
-      `}</style>
-      <h1 style={{ padding: '12px 16px', margin: 0, fontSize: 16, borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Knowledge Graph — Room {code}</span>
-        <span style={{ fontSize: 12, color: '#8b95b5' }}>
-          <span style={{ color: live ? '#2ecc71' : '#e74c3c' }}>●</span> {live ? 'live' : 'offline'} · {counts.nodes} nodes · {counts.edges} edges
+    <div className="graph-page">
+      <header className="graph-top">
+        <h1>
+          <span className="eq still" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+          Knowledge graph
+          <span className="graph-room">{code}</span>
+        </h1>
+        <span className="graph-stat">
+          <span className="sdot" style={{ color: live ? 'var(--live)' : 'var(--rec)' }} aria-hidden="true">●</span>
+          {live ? 'LIVE' : 'OFFLINE'}
+          <span className="stat-counts">
+            · {counts.nodes} NODES · {counts.edges} EDGES
+          </span>
         </span>
-      </h1>
-      <div id="graph" ref={containerRef} style={{ width: '100vw', height: 'calc(100vh - 44px)' }} />
-      <div className="kg-legend">
-        <div><b>Nodes</b></div>
-        <div><span className="kg-dot" style={{ background: NODE_COLOR.skill }} />skill</div>
-        <div><span className="kg-dot" style={{ background: NODE_COLOR.group }} />skill category</div>
-        <div><span className="kg-dot" style={{ background: NODE_COLOR.topic }} />project / topic</div>
-        <div><span className="kg-dot" style={{ background: NODE_COLOR.claim }} />claim</div>
-        <div><span className="kg-dot" style={{ background: NODE_COLOR.entity }} />person / company</div>
-        <div style={{ marginTop: 8 }}><b>Edges</b></div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.contradicts }} />contradicts</div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.supports }} />supports</div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.includes }} />includes</div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.built_with }} />built with</div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.used_skill }} />used skill</div>
-        <div><span className="kg-line" style={{ background: LINK_COLOR.mentions }} />mentions</div>
+      </header>
+      <div className="graph-view">
+        <div id="graph" ref={containerRef} style={{ width: '100%', height: '100%' }} />
+        <div className="kg-legend">
+          <div><b>Nodes</b></div>
+          <div><span className="kg-dot" style={{ background: NODE_COLOR.skill }} />skill</div>
+          <div><span className="kg-dot" style={{ background: NODE_COLOR.group }} />skill category</div>
+          <div><span className="kg-dot" style={{ background: NODE_COLOR.topic }} />project / topic</div>
+          <div><span className="kg-dot" style={{ background: NODE_COLOR.claim }} />claim</div>
+          <div><span className="kg-dot" style={{ background: NODE_COLOR.entity }} />person / company</div>
+          <hr />
+          <div><b>Edges</b></div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.contradicts }} />contradicts</div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.supports }} />supports</div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.includes }} />includes</div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.built_with }} />built with</div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.used_skill }} />used skill</div>
+          <div><span className="kg-line" style={{ background: LINK_COLOR.mentions }} />mentions</div>
+        </div>
+        <div id="kg-empty" className="kg-empty">
+          <span className="eq still" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+          <p>No graph yet — upload a resume in the copilot to seed it from the resume.</p>
+        </div>
       </div>
-      <div id="kg-empty" className="kg-empty">No graph yet — upload a resume in the copilot to seed it from the resume.</div>
     </div>
   )
 }
@@ -100,8 +95,10 @@ function initGraph(
 ) {
   const d3 = (window as any).d3
   if (!d3) return
-  const width = window.innerWidth
-  const height = window.innerHeight - 44
+  const HEADER_H = 44
+  const viewEl = document.querySelector('.graph-view') as HTMLElement | null
+  const width = viewEl?.clientWidth ?? window.innerWidth
+  const height = viewEl?.clientHeight ?? window.innerHeight - HEADER_H
   const svg = d3.select('#graph').append('svg').attr('width', width).attr('height', height)
   const g = svg.append('g')
   const zoom = d3.zoom().scaleExtent([0.2, 3]).on('zoom', (e: any) => g.attr('transform', e.transform))
@@ -153,7 +150,7 @@ function initGraph(
     nodeEnter.append('circle')
       .attr('r', (d: any) => RADIUS_BY_TYPE[d.type] || 8)
       .attr('fill', (d: any) => NODE_COLOR[d.type] || '#999')
-      .attr('stroke', '#fff')
+      .attr('stroke', '#3a3325')
       .attr('stroke-width', 1.5)
     nodeEnter.append('title').text((d: any) => {
       const meta = d.meta || {}
@@ -218,8 +215,10 @@ function initGraph(
   }
 
   window.addEventListener('resize', () => {
-    svg.attr('width', window.innerWidth).attr('height', window.innerHeight - 44)
-    simulation.force('center', d3.forceCenter(window.innerWidth / 2, (window.innerHeight - 44) / 2))
+    const w = viewEl?.clientWidth ?? window.innerWidth
+    const h = viewEl?.clientHeight ?? window.innerHeight - HEADER_H
+    svg.attr('width', w).attr('height', h)
+    simulation.force('center', d3.forceCenter(w / 2, h / 2))
     simulation.alpha(0.3).restart()
   })
 }

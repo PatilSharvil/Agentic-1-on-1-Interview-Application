@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import Copilot from '../components/Copilot'
+import {
+  IconMic, IconMicOff, IconCam, IconCamOff, IconScreen, IconRecord, IconStop,
+  IconLeave, IconSend, IconWave,
+} from '../components/icons'
 
 const WORKLET_CODE = `
 class RecorderProcessor extends AudioWorkletProcessor {
@@ -170,6 +174,11 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
   const [role, setRole] = useState<string>('guest')
   const [sttStatus, setSttStatus] = useState<SttStatus | null>(null)
   const [modelInfo, setModelInfo] = useState('')
+  const [railTab, setRailTab] = useState<'transcript' | 'chat' | 'copilot'>('transcript')
+  const [showDiag, setShowDiag] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [peerName, setPeerName] = useState('Waiting…')
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => { roleRef.current = role }, [role])
   useEffect(() => { transcriptEndRef.current?.scrollIntoView({ block: 'end' }) }, [transcripts])
@@ -363,6 +372,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
                 // Room state snapshot: recording flag survives a refresh.
                 if (typeof data.recording === 'boolean') setRecording(data.recording)
                 const others = (data.participants || []).filter((p: any) => p.name !== name)
+                if (others.length > 0) setPeerName(others[0].name)
                 // Hydrate transcript + chat history so a reloaded client
                 // continues exactly where the meeting left off.
                 try {
@@ -415,6 +425,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
                 // the connection with a fresh offer even if our pc still
                 // remembers a half-completed negotiation.
                 setStatus('connected')
+                if (data.name) setPeerName(data.name)
                 await offerPeer()
                 break
               case 'offer': {
@@ -450,10 +461,21 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
                 mergeTranscripts([{ id: data.id, speaker: data.speaker, text: data.text }])
                 break
               }
+              case 'chat': {
+                // Server broadcasts back to the sender too; dedupe by id.
+                setChat((prev) => {
+                  if (data.id && prev.some((c) => c.id === data.id)) return prev
+                  return [...prev, { id: data.id, sender: data.sender, body: data.body }]
+                })
+                break
+              }
+              case 'error':
+                console.error('server: ' + (data.message || 'unknown error'))
+                break
               case 'leave':
                 // Ignore our own stale leave (fired by the old socket after a
                 // reload); only a *different* person leaving is meaningful.
-                if (data.name && data.name !== name) setStatus('peer left')
+                if (data.name && data.name !== name) { setStatus('peer left'); setPeerName('Waiting…') }
                 break
             }
           } catch (e) {
@@ -490,6 +512,7 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
       cancelled = true
       if (fallbackTimer) clearTimeout(fallbackTimer)
       if (retryTimer) clearTimeout(retryTimer)
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
       stopAudioCapture()
       pcRef.current?.close()
       wsRef.current?.close()
@@ -567,72 +590,286 @@ export default function Room({ code, name, onLeave }: { code: string; name: stri
     } catch (e) { console.error('test wav failed', e) }
   }
 
-  const statusColor = sttStatus?.status === 'ok' ? '#2ecc71'
-    : sttStatus?.status === 'no_speech' ? '#888'
-    : sttStatus?.status === 'hallucination' ? '#e67e22'
-    : sttStatus?.status === 'error' ? '#e74c3c' : '#888'
+  const statusDot =
+    status === 'connected' ? 'connected'
+      : status === 'connecting...' ? 'connecting'
+        : status === 'peer left' ? 'peers'
+          : 'disconnected'
+
+  function copyCode() {
+    try {
+      void navigator.clipboard?.writeText(code).catch(() => { /* clipboard unavailable */ })
+      setCopied(true)
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(false), 1600)
+    } catch { /* clipboard unavailable */ }
+  }
+
+  function recordToggle() {
+    const next = !recording
+    setRecording(next)
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: next ? 'start-recording' : 'stop-recording' }))
+    }
+  }
+
+  const statusText = status.charAt(0).toUpperCase() + status.slice(1).replace(/\.\.\.$/, '…')
 
   return (
-    <div style={{ display: 'flex', fontFamily: 'sans-serif' }}>
-      <div style={{ flex: 1, padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <h2>Room {code} — {name}</h2>
-        <button onClick={onLeave}>Leave</button>
-      </div>
-      <div style={{ color: '#666', marginBottom: 8 }}>{status}</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <video ref={localVideo} autoPlay muted playsInline style={{ width: 320, background: '#000' }} />
-        <video ref={remoteVideo} autoPlay playsInline style={{ width: 320, background: '#000' }} />
-      </div>
-      <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={toggleMute}>{muted ? 'Unmute' : 'Mute'}</button>
-        <button onClick={toggleCam}>{camOff ? 'Cam on' : 'Cam off'}</button>
-        <button onClick={shareScreen}>Share screen</button>
-        {role === 'host' && (
-          <>
-            <button onClick={() => {
-              const next = !recording
-              setRecording(next)
-              if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({ type: next ? 'start-recording' : 'stop-recording' }))
-              }
-            }}>{recording ? 'Stop recording' : 'Start recording'}</button>
-            <button onClick={() => { try { workletNodeRef.current?.port.postMessage('flush') } catch {} }}>Send audio now</button>
-            <button onClick={testSttWav}>Test STT (wav)</button>
-            <button onClick={toggleWebSpeech}>{webSpeechOn ? 'Stop browser STT' : 'Start browser STT'}</button>
-          </>
-        )}
-      </div>
-      <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-        {modelInfo && <span>STT: {modelInfo} · </span>}
-        {sttStatus && (
-          <span style={{ color: statusColor }}>
-            {sttStatus.status}{sttStatus.reason ? ` (${sttStatus.reason})` : ''}
-            {typeof sttStatus.latency_ms === 'number' ? ` · ${sttStatus.latency_ms}ms` : ''}
+    <div className="room">
+      {/* ── top deck ─────────────────────────────────────────── */}
+      <header className="room-top">
+        <div className="brand">
+          <span className="eq" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+          Interview Room
+        </div>
+
+        <div className="top-mid">
+          <button
+            className={`slate${copied ? ' copied' : ''}`}
+            onClick={copyCode}
+            title="Copy room code"
+            aria-label={`Copy room code ${code}`}
+          >
+            <span className="mono">{code}</span>
+            <kbd>{copied ? 'copied' : 'copy'}</kbd>
+          </button>
+          {recording && (
+            <span className="chip chip-rec" aria-label="Recording in progress">
+              <span className="rec-point" /> REC
+            </span>
+          )}
+          <span className="chip chip-status">
+            <span className="dot" data-state={statusDot} />
+            {statusText}
           </span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
-        <div style={{ flex: 1 }}>
-          <h3>Chat</h3>
-          <div style={{ height: 160, overflow: 'auto', border: '1px solid #ccc', padding: 8 }}>
-            {chat.map((c, i) => <div key={c.id || i}><b>{c.sender}:</b> {c.body}</div>)}
-          </div>
-          <div style={{ display: 'flex', marginTop: 4 }}>
-            <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} style={{ flex: 1 }} />
-            <button onClick={sendChat}>Send</button>
-          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <h3>Transcript (STT)</h3>
-          <div style={{ height: 160, overflow: 'auto', border: '1px solid #ccc', padding: 8 }}>
-            {transcripts.map((t, i) => <div key={t.id || i}><b>{t.speaker}:</b> {t.text}</div>)}
-            <div ref={transcriptEndRef} />
+
+        <button className="btn btn-danger btn-sm" onClick={onLeave}>
+          <IconLeave /> Leave
+        </button>
+      </header>
+
+      <div className="room-body">
+        {/* ── stage ──────────────────────────────────────────── */}
+        <section className="stage-col">
+          <div className="stage">
+            <figure className="tile tile-remote vf">
+              <span className="vf-c tl" /><span className="vf-c tr" /><span className="vf-c bl" /><span className="vf-c br" />
+              <video ref={remoteVideo} autoPlay playsInline />
+              <figcaption className="tile-label">{peerName}</figcaption>
+            </figure>
+            <figure className="tile tile-local vf">
+              <span className="vf-c tl" /><span className="vf-c tr" /><span className="vf-c bl" /><span className="vf-c br" />
+              <video ref={localVideo} autoPlay muted playsInline />
+              {(camOff || muted) && (
+                <span className="tile-badge">
+                  {camOff ? 'CAMERA OFF' : 'MUTED'}
+                </span>
+              )}
+              <figcaption className="tile-label">You · {name}</figcaption>
+            </figure>
           </div>
-        </div>
+
+          <div className="deck">
+            <div className="ctl-bar" role="toolbar" aria-label="Meeting controls">
+              <button
+                className={`ctl-btn${muted ? ' is-live' : ''}`}
+                onClick={toggleMute}
+                title={muted ? 'Unmute microphone' : 'Mute microphone'}
+                aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}
+                aria-pressed={muted}
+              >
+                {muted ? <IconMicOff size={21} /> : <IconMic size={21} />}
+              </button>
+              <button
+                className={`ctl-btn${camOff ? ' is-live' : ''}`}
+                onClick={toggleCam}
+                title={camOff ? 'Turn camera on' : 'Turn camera off'}
+                aria-label={camOff ? 'Turn camera on' : 'Turn camera off'}
+                aria-pressed={camOff}
+              >
+                {camOff ? <IconCamOff size={21} /> : <IconCam size={21} />}
+              </button>
+              <button
+                className="ctl-btn"
+                onClick={() => void shareScreen()}
+                title="Share your screen"
+                aria-label="Share your screen"
+              >
+                <IconScreen size={21} />
+              </button>
+              {role === 'host' && (
+                <button
+                  className={`ctl-btn ctl-record${recording ? ' is-live' : ''}`}
+                  onClick={recordToggle}
+                  title={recording ? 'Stop recording' : 'Start recording'}
+                  aria-label={recording ? 'Stop recording' : 'Start recording'}
+                  aria-pressed={recording}
+                >
+                  {recording ? <IconStop size={19} /> : <IconRecord size={21} />}
+                </button>
+              )}
+            </div>
+            <button className="btn btn-danger leave" onClick={onLeave}>
+              <IconLeave /> Leave call
+            </button>
+          </div>
+
+          {role === 'host' && (
+            <div className="diag">
+              <button
+                className="diag-toggle"
+                onClick={() => setShowDiag((v) => !v)}
+                aria-expanded={showDiag}
+              >
+                <span className="shevron" aria-hidden="true">▸</span>
+                Diagnostics
+              </button>
+              {showDiag && (
+                <div className="diag-tools">
+                  <button
+                    className="chip chip-action"
+                    onClick={() => { try { workletNodeRef.current?.port.postMessage('flush') } catch {} }}
+                    title="Flush any buffered speech to the transcriber now"
+                  >
+                    Send audio now
+                  </button>
+                  <button className="chip chip-action" onClick={() => void testSttWav()}>
+                    Test STT (wav)
+                  </button>
+                  <button className="chip chip-action" onClick={toggleWebSpeech} aria-pressed={webSpeechOn}>
+                    {webSpeechOn ? 'Browser STT: on' : 'Browser STT: off'}
+                  </button>
+                  {modelInfo && <span className="chip" title="Speech-to-text model in use">STT {modelInfo}</span>}
+                  {sttStatus && (
+                    <span className="chip chip-stt">
+                      <span
+                        className="dot"
+                        data-state={sttStatus.status === 'ok' ? 'ok' : sttStatus.status}
+                        style={sttStatus.status === 'ok' ? { background: 'var(--live)' } : undefined}
+                      />
+                      {sttStatus.status}
+                      {typeof sttStatus.latency_ms === 'number' ? ` · ${sttStatus.latency_ms}ms` : ''}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* ── right rail ─────────────────────────────────────── */}
+        <aside className="rail" aria-label="Meeting panels">
+          <div className="rail-tabs" role="tablist">
+            <button
+              role="tab"
+              className={`rail-tab${railTab === 'transcript' ? ' is-active' : ''}`}
+              aria-selected={railTab === 'transcript'}
+              onClick={() => setRailTab('transcript')}
+            >
+              Transcript
+            </button>
+            <button
+              role="tab"
+              className={`rail-tab${railTab === 'chat' ? ' is-active' : ''}`}
+              aria-selected={railTab === 'chat'}
+              onClick={() => setRailTab('chat')}
+            >
+              Chat{chat.length > 0 ? ` · ${chat.length}` : ''}
+            </button>
+            {role === 'host' && (
+              <button
+                role="tab"
+                className={`rail-tab${railTab === 'copilot' ? ' is-active' : ''}`}
+                aria-selected={railTab === 'copilot'}
+                onClick={() => setRailTab('copilot')}
+              >
+                Copilot
+              </button>
+            )}
+          </div>
+
+          {railTab === 'transcript' && (
+            <div className="rail-panel">
+              <div className="rail-scroll scroll-pane">
+                {transcripts.length === 0 ? (
+                  <div className="rail-empty">
+                    <IconWave size={26} />
+                    <p>Captions appear here once speech is captured — each utterance is tagged by speaker.</p>
+                  </div>
+                ) : (
+                  transcripts.map((t, i) => (
+                    <div className="t-row" key={t.id || i}>
+                      <span
+                        className={`t-speaker ${
+                          t.speaker === 'Interviewer' ? 'host'
+                            : t.speaker === 'Candidate' ? 'candidate' : 'other'
+                        }`}
+                      >
+                        {t.speaker}
+                      </span>
+                      <p className="t-text">{t.text}</p>
+                    </div>
+                  ))
+                )}
+                <div ref={transcriptEndRef} />
+              </div>
+            </div>
+          )}
+
+          {railTab === 'chat' && (
+            <div className="rail-panel">
+              <div className="rail-scroll scroll-pane">
+                {chat.length === 0 ? (
+                  <div className="rail-empty">
+                    <IconWave size={26} />
+                    <p>No messages yet. Say hello — the conversation is visible to both of you.</p>
+                  </div>
+                ) : (
+                  chat.map((c, i) => (
+                    <div className="c-row" key={c.id || i}>
+                      <span
+                        className={`c-avatar ${c.sender === name ? 'me' : 'them'}`}
+                        aria-hidden="true"
+                      >
+                        {c.sender.trim().charAt(0).toUpperCase() || '?'}
+                      </span>
+                      <div>
+                        <div className="c-meta">
+                          <span className="c-name">{c.sender}{c.sender === name ? ' (you)' : ''}</span>
+                        </div>
+                        <p className="c-body">{c.body}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <form
+                className="rail-foot"
+                onSubmit={(e) => { e.preventDefault(); sendChat() }}
+              >
+                <div className="chat-row">
+                  <input
+                    className="input"
+                    placeholder="Type a message…"
+                    value={msg}
+                    onChange={(e) => setMsg(e.target.value)}
+                    aria-label="Chat message"
+                  />
+                  <button className="btn btn-primary btn-sm" onClick={sendChat} disabled={!msg.trim()}>
+                    <IconSend /> Send
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {railTab === 'copilot' && role === 'host' && (
+            <Copilot code={code} />
+          )}
+        </aside>
       </div>
-      </div>
-      {role === 'host' && <Copilot code={code} />}
     </div>
   )
 }
