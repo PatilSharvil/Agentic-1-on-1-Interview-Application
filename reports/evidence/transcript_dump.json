@@ -1,0 +1,98 @@
+[
+  {
+    "speaker": "Interviewer",
+    "text": "Question 1. How did you architect the FastAPI Payments API to handle 2M requests per day, and what scaling strategies did you employ?",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 808,
+    "t": "11:36:43"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "At Finlytics I built the Payments API with FastAPI and PostgreSQL. It processes about 2 million requests per day. I used SQLAlchemy async sessions and Pydantic schemas, and the pytest suite covers 85% of the code.",
+    "sim": 0.93,
+    "model": "whisper-large-v3",
+    "latency_ms": 889,
+    "t": "11:36:45"
+  },
+  {
+    "speaker": "Interviewer",
+    "text": "Question 2. Can you walk through the Redis caching strategy you implemented for the Payments API and explain how it reduced P95 latency?",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 825,
+    "t": "11:37:03"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "We scaled the service with Redis caching and Celery workers running on Kubernetes. I wrote the Helm charts myself and tuned the auto scaling based on P95 latency. That cut the P95 from 900 milliseconds down to 120 milliseconds.",
+    "sim": 0.96,
+    "model": "whisper-large-v3",
+    "latency_ms": 1187,
+    "t": "11:37:04"
+  },
+  {
+    "speaker": "Interviewer",
+    "text": "Question 3. Describe the Terraform configuration you used to deploy the Kubernetes cluster on AWS EKS for Finlaytix. What challenges did you face?",
+    "sim": 0.94,
+    "model": "whisper-large-v3",
+    "latency_ms": 920,
+    "t": "11:37:22"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "During one outage I traced the problem to connection pool exhaustion in PostgreSQL. I added pgBouncer in front of the database and set up Grafana dashboards with alerting so we would catch it earlier next time.",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 832,
+    "t": "11:37:24"
+  },
+  {
+    "speaker": "Interviewer",
+    "text": "Question 4. What was your role in designing the Kafka ingestion pipelines at DataHive, and how did you ensure reliability and fault tolerance?",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 752,
+    "t": "11:37:42"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "I own the GitHub Actions pipeline. Docker images are built with multi-stage builds, scanned with Trivy, and deployed with Terraform to AWS EKS. Every merge to main goes out automatically.",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 1168,
+    "t": "11:37:44"
+  },
+  {
+    "speaker": "Interviewer",
+    "text": "Question 5. Explain the multi-stage Docker build process you set up in GitHub Actions for DataHive. How did it improve build times or security?",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 930,
+    "t": "11:38:02"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "Early at DataHive, I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug. I learned to measure first, and now I prototype behind feature flags before committing.",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 1107,
+    "t": "11:38:04"
+  },
+  {
+    "speaker": "Interviewer",
+    "text": "Question 6. Can you describe how you implemented feature flags for the new payment endpoint, including the flag management tool you used and how you monitored its impact on traffic and error rates?",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 1007,
+    "t": "11:38:22"
+  },
+  {
+    "speaker": "Candidate",
+    "text": "To be honest, I have never actually run Kubernetes in production myself. At Finlytics, we used Docker Compose on a single AWS instance, and another team managed the EKS cluster.",
+    "sim": 1.0,
+    "model": "whisper-large-v3",
+    "latency_ms": 944,
+    "t": "11:38:24"
+  }
+]

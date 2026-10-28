@@ -1,0 +1,1004 @@
+{
+  "nodes": [
+    {
+      "id": "person:candidate",
+      "label": "Candidate",
+      "type": "entity",
+      "meta": {
+        "source": "resume",
+        "role": "candidate"
+      }
+    },
+    {
+      "id": "skill:python",
+      "label": "Python",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:aws",
+      "label": "AWS",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:docker",
+      "label": "Docker",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:fastapi",
+      "label": "FastAPI",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:github-actions",
+      "label": "GitHub Actions",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:kafka",
+      "label": "Kafka",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:kubernetes",
+      "label": "Kubernetes",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:postgresql",
+      "label": "PostgreSQL",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:redis",
+      "label": "Redis",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:terraform",
+      "label": "Terraform",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:django",
+      "label": "Django",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:grafana",
+      "label": "Grafana",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:graphql",
+      "label": "GraphQL",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:mongodb",
+      "label": "MongoDB",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "skill:pytest",
+      "label": "Pytest",
+      "type": "skill",
+      "meta": {
+        "source": "resume"
+      }
+    },
+    {
+      "id": "entity:pune-university",
+      "label": "Pune University",
+      "type": "entity",
+      "meta": {
+        "source": "resume",
+        "kind": "education",
+        "degree": "B.Tech, Computer Science, Pune University"
+      }
+    },
+    {
+      "id": "claim:511a4083e22b",
+      "label": "At Finlytics I built the Payments API with FastAPI and PostgreSQL.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "At Finlytics I built the Payments API with FastAPI and PostgreSQL.",
+        "verdict": "supports",
+        "confidence": 0.95,
+        "llm": true
+      }
+    },
+    {
+      "id": "claim:b68b337fc08a",
+      "label": "I used SQLAlchemy async sessions and Pydantic schemas, and the pytest suite covers 85% of the code.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "I used SQLAlchemy async sessions and Pydantic schemas, and the pytest suite covers 85% of the code.",
+        "verdict": "supports"
+      }
+    },
+    {
+      "id": "claim:e15b5e51d5eb",
+      "label": "We scaled the service with Redis caching and Celery workers running on Kubernetes.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "We scaled the service with Redis caching and Celery workers running on Kubernetes",
+        "verdict": "supports",
+        "confidence": 0.95,
+        "llm": true
+      }
+    },
+    {
+      "id": "skill:helm",
+      "label": "Helm",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "claim:8a0c5e3ea18b",
+      "label": "I wrote the Helm charts myself and tuned the auto scaling based on P95 latency.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "I wrote the Helm charts myself and tuned the auto scaling based on P95 latency",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "claim:3693ae079e8a",
+      "label": "During one outage I traced the problem to connection pool exhaustion in PostgreSQL.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "During one outage I traced the problem to connection pool exhaustion in PostgreSQL.",
+        "verdict": "mentions"
+      }
+    },
+    {
+      "id": "claim:b5f069bff74b",
+      "label": "I added pgBouncer in front of the database and set up Grafana dashboards with alerting so we would catch it earlier n...",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "I added pgBouncer in front of the database and set up Grafana dashboards with alerting so we would catch it earlier next time.",
+        "verdict": "mentions"
+      }
+    },
+    {
+      "id": "claim:cfc21318ff71",
+      "label": "I own the GitHub Actions pipeline.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "I own the GitHub Actions pipeline.",
+        "verdict": "mentions"
+      }
+    },
+    {
+      "id": "claim:78dd592eb483",
+      "label": "Docker images are built with multi-stage builds, scanned with Trivy, and deployed with Terraform to AWS EKS.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "Docker images are built with multi-stage builds, scanned with Trivy, and deployed with Terraform to AWS EKS.",
+        "verdict": "supports"
+      }
+    },
+    {
+      "id": "skill:microservices",
+      "label": "Microservices",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "claim:8188a48f06ef",
+      "label": "Early at DataHive, I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "Early at DataHive, I split a monolith into microservices too early, and it made the Kafka ingestion harder to debug.",
+        "verdict": "mentions"
+      }
+    },
+    {
+      "id": "claim:cce29eea071a",
+      "label": "To be honest, I have never actually run Kubernetes in production myself.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "To be honest, I have never actually run Kubernetes in production myself",
+        "verdict": "contradicts",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "claim:ff67eee62499",
+      "label": "At Finlytics, we used Docker Compose on a single AWS instance, and another team managed the EKS cluster.",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "speaker": "Candidate",
+        "evidence": "At Finlytics, we used Docker Compose on a single AWS instance, and another team managed the EKS cluster.",
+        "verdict": "supports"
+      }
+    },
+    {
+      "id": "claim:75945bc971fe",
+      "label": "Used SQLAlchemy async sessions and Pydantic schemas",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "I used SQLAlchemy async sessions and Pydantic schemas",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "skill:sqlalchemy",
+      "label": "Sqlalchemy",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "skill:pydantic",
+      "label": "Pydantic",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "claim:fd6a9552a3b3",
+      "label": "Pytest suite covers 85% of the code",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "the pytest suite covers 85% of the code",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "skill:celery",
+      "label": "Celery",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "claim:b5066879e7b5",
+      "label": "Added pgBouncer to address PostgreSQL connection pool exhaustion",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "I added pgBouncer in front of the database and set up Grafana dashboards with alerting",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "skill:pgbouncer",
+      "label": "Pgbouncer",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    },
+    {
+      "id": "claim:a4eec48aa029",
+      "label": "Set up Grafana dashboards with alerting",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "set up Grafana dashboards with alerting so we would catch it earlier next time",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "claim:e1f74906364e",
+      "label": "Own GitHub Actions pipeline with multi-stage Docker builds",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "I own the GitHub Actions pipeline. Docker images are built with multi-stage builds",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "claim:a15f259ff4c0",
+      "label": "Deployed with Terraform to AWS EKS",
+      "type": "claim",
+      "meta": {
+        "source": "transcript",
+        "evidence": "deployed with Terraform to AWS EKS",
+        "verdict": "supports",
+        "confidence": 0.9,
+        "llm": true
+      }
+    },
+    {
+      "id": "skill:eks",
+      "label": "Eks",
+      "type": "skill",
+      "meta": {
+        "source": "transcript"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "2dac1787-ddfa-4a9e-99c5-1de7f5d04f0b",
+      "source": "person:candidate",
+      "target": "skill:kubernetes",
+      "relation": "contradicts",
+      "weight": 0.95
+    },
+    {
+      "id": "84716dc4-5dc0-4e29-8927-9054c6e27d27",
+      "source": "claim:cce29eea071a",
+      "target": "skill:kubernetes",
+      "relation": "contradicts",
+      "weight": 0.95
+    },
+    {
+      "id": "ef1d731d-7f43-4e7a-86cb-947d6468b231",
+      "source": "person:candidate",
+      "target": "skill:fastapi",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "9d61c6de-2d40-4445-abf3-0bc7e208db6e",
+      "source": "person:candidate",
+      "target": "skill:postgresql",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "863b7221-09cf-47c6-a532-1c99d929114b",
+      "source": "claim:511a4083e22b",
+      "target": "skill:fastapi",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "7d0ddf30-c1d1-4ec5-8ff4-f887bd4ddcb2",
+      "source": "claim:511a4083e22b",
+      "target": "skill:postgresql",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "f1def418-97da-4639-bc93-27d6e4f7a30d",
+      "source": "person:candidate",
+      "target": "skill:pytest",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "86a2986f-d5d3-415f-889b-38dfe6dede19",
+      "source": "claim:b68b337fc08a",
+      "target": "skill:pytest",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "39286ee1-db16-4b78-9e45-b3275d938c55",
+      "source": "claim:e15b5e51d5eb",
+      "target": "skill:kubernetes",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "f0bd343d-ee31-4476-a0b7-fa326d66ed6c",
+      "source": "claim:e15b5e51d5eb",
+      "target": "skill:redis",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "1d15f6ce-8480-4f78-a334-37faff05f69a",
+      "source": "person:candidate",
+      "target": "skill:helm",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "168caa9e-5bc3-4029-a60d-3d3bca859685",
+      "source": "claim:8a0c5e3ea18b",
+      "target": "skill:helm",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "fc869ff8-fb33-4aff-859e-32617b6c1f61",
+      "source": "claim:3693ae079e8a",
+      "target": "skill:postgresql",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "3a756e6c-775c-4cf9-a9dd-2351b6c9d142",
+      "source": "claim:b5f069bff74b",
+      "target": "skill:grafana",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "ec45b726-f0e4-44ec-829d-325e56e7e4d7",
+      "source": "claim:cfc21318ff71",
+      "target": "skill:github-actions",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "61a5a353-d4c0-408f-a74a-00f4983c073c",
+      "source": "person:candidate",
+      "target": "skill:aws",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "022f14b6-7881-467b-9055-093c507999ee",
+      "source": "person:candidate",
+      "target": "skill:docker",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "147dab4e-1b97-431a-937a-77b03a623852",
+      "source": "person:candidate",
+      "target": "skill:terraform",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "97ac17f4-f730-4a17-b014-7356c4eec203",
+      "source": "claim:78dd592eb483",
+      "target": "skill:aws",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "0698e81b-c4cf-4662-993c-f1a5909e2eb0",
+      "source": "claim:78dd592eb483",
+      "target": "skill:docker",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "840b448c-0467-407c-8785-b040e4b766c7",
+      "source": "claim:78dd592eb483",
+      "target": "skill:terraform",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "0cc81112-2a53-494e-a8f3-be91d8f13ad8",
+      "source": "claim:8188a48f06ef",
+      "target": "skill:kafka",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "dcc90e06-afb1-43ce-a1fb-9ec5218dc27d",
+      "source": "claim:8188a48f06ef",
+      "target": "skill:microservices",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "8a1fc86f-932a-4985-a409-0b581a862432",
+      "source": "claim:ff67eee62499",
+      "target": "skill:aws",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "b42a05ee-cd0c-464b-8d08-bdfe993ca79f",
+      "source": "claim:ff67eee62499",
+      "target": "skill:docker",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "6606db0a-13d4-4489-9c28-413cd15a075b",
+      "source": "claim:75945bc971fe",
+      "target": "skill:sqlalchemy",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "ef607abd-4c2b-409d-8f0f-9b976b3fe7c9",
+      "source": "person:candidate",
+      "target": "skill:sqlalchemy",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "014fca2d-a73f-44f8-b492-7f26c41959ad",
+      "source": "claim:75945bc971fe",
+      "target": "skill:pydantic",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "4c208e3e-ff3a-4587-9d9d-2dd2f76c09c5",
+      "source": "person:candidate",
+      "target": "skill:pydantic",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "bd046b06-2162-40c1-ace3-73affc0d0be2",
+      "source": "claim:fd6a9552a3b3",
+      "target": "skill:pytest",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "9ca9d187-a376-42b1-9315-2549d0f21098",
+      "source": "person:candidate",
+      "target": "skill:redis",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "4e357b5c-03f6-4e8e-8843-1df5798be714",
+      "source": "claim:e15b5e51d5eb",
+      "target": "skill:celery",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "9b5b3b68-e91f-401f-8697-b4e2dd7d915f",
+      "source": "person:candidate",
+      "target": "skill:celery",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "29c3a93a-119c-4ca9-848a-88792cfcce46",
+      "source": "person:candidate",
+      "target": "skill:kubernetes",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "9b978962-2def-446d-a7dc-3037aba52012",
+      "source": "claim:b5066879e7b5",
+      "target": "skill:pgbouncer",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "8cb0b4d8-1e66-4cf5-8a26-b7f141dd5920",
+      "source": "person:candidate",
+      "target": "skill:pgbouncer",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "2a91abbd-04e0-4a04-a906-4122e66e6eb7",
+      "source": "claim:b5066879e7b5",
+      "target": "skill:grafana",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "33bc3b21-10b6-4611-aa42-e8f26c0b25da",
+      "source": "person:candidate",
+      "target": "skill:grafana",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "3a9577b8-2e17-4d51-821c-b69ff9a83828",
+      "source": "claim:a4eec48aa029",
+      "target": "skill:grafana",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "13d8c0ad-96e7-42c6-a708-545113e605f2",
+      "source": "claim:e1f74906364e",
+      "target": "skill:github-actions",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "e31abc3d-cfdb-4f1a-9032-2c16a81ff227",
+      "source": "person:candidate",
+      "target": "skill:github-actions",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "bbe22b11-a8d9-421c-87ef-b05e52395ec8",
+      "source": "claim:e1f74906364e",
+      "target": "skill:docker",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "5c5c332a-e4f7-4634-a5ab-0e9aed34bde8",
+      "source": "claim:a15f259ff4c0",
+      "target": "skill:terraform",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "ec48c75c-bda1-481b-8bdc-0b719c624c89",
+      "source": "claim:a15f259ff4c0",
+      "target": "skill:aws",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "5f24f3ef-2c6f-4122-bb5f-27257a1e6feb",
+      "source": "claim:a15f259ff4c0",
+      "target": "skill:eks",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "093a69f4-663e-4a26-acfd-fd57b1012b85",
+      "source": "person:candidate",
+      "target": "skill:eks",
+      "relation": "supports",
+      "weight": 0.9
+    },
+    {
+      "id": "2840fcd6-66ab-457e-900f-b4ccc8a23f9d",
+      "source": "person:candidate",
+      "target": "skill:python",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "22936593-3fc0-47ef-819e-df1ff04729dd",
+      "source": "person:candidate",
+      "target": "skill:aws",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "48c12c10-2af3-4502-984d-d78155f2a14b",
+      "source": "person:candidate",
+      "target": "skill:docker",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "c5906c5b-665d-405a-898f-41f15d6a4786",
+      "source": "person:candidate",
+      "target": "skill:fastapi",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "7c5dbf01-9929-4fc7-8149-62b7c0914423",
+      "source": "person:candidate",
+      "target": "skill:github-actions",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "ae9a17d8-9220-4cf3-8f59-5139efa94a08",
+      "source": "person:candidate",
+      "target": "skill:kafka",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "0c4c75b1-2b0b-4347-a1b7-479387cb7be7",
+      "source": "person:candidate",
+      "target": "skill:kubernetes",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "6cab7435-445d-4578-af50-ca7e4926d9b4",
+      "source": "person:candidate",
+      "target": "skill:postgresql",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "03012bde-1e8d-4521-be1e-f6e66cd97cd2",
+      "source": "person:candidate",
+      "target": "skill:redis",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "005ff48e-5181-4f4c-a5cf-e74f07b65242",
+      "source": "person:candidate",
+      "target": "skill:terraform",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "66cb19f6-c197-4a1d-9183-e0ebbfd0e386",
+      "source": "person:candidate",
+      "target": "skill:django",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "7d248161-1974-4ac9-86e9-ccd9c717bc62",
+      "source": "person:candidate",
+      "target": "skill:grafana",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "88ffc87f-d579-4938-ba9d-9e982af0607e",
+      "source": "person:candidate",
+      "target": "skill:graphql",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "068103e2-f967-49af-bd62-86911b56def6",
+      "source": "person:candidate",
+      "target": "skill:mongodb",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "24a7ad95-d978-4579-9970-561bcbe975b8",
+      "source": "person:candidate",
+      "target": "skill:pytest",
+      "relation": "has_skill",
+      "weight": 0.9
+    },
+    {
+      "id": "c43e755b-5c93-4f7f-b684-090eef5c97d2",
+      "source": "person:candidate",
+      "target": "entity:pune-university",
+      "relation": "studied_at",
+      "weight": 0.8
+    },
+    {
+      "id": "7ba0b852-027a-4b07-85ba-913e1440c4ee",
+      "source": "person:candidate",
+      "target": "claim:511a4083e22b",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "4b2c587b-ee9b-4e0b-a29f-dd6edace2e8e",
+      "source": "person:candidate",
+      "target": "claim:b68b337fc08a",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "5d7f8ec8-d62e-4ccd-b472-bf87cbb48f9e",
+      "source": "person:candidate",
+      "target": "skill:kubernetes",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "b7a049e2-8306-4ae1-9e2f-40dc125abd8a",
+      "source": "person:candidate",
+      "target": "skill:redis",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "63d9cd8c-5025-46ef-8516-61ed9d97ff04",
+      "source": "person:candidate",
+      "target": "claim:e15b5e51d5eb",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "6508d8b0-6775-4fb2-bcc5-0a7a6233020e",
+      "source": "person:candidate",
+      "target": "claim:8a0c5e3ea18b",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "c6028612-af4b-423a-bcf2-b8e8a6c5cd1c",
+      "source": "person:candidate",
+      "target": "skill:postgresql",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "e46b01d7-a4bf-481f-8f0f-226c5e61ac61",
+      "source": "person:candidate",
+      "target": "claim:3693ae079e8a",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "cef0850d-ecce-4750-b2b5-7795b164375c",
+      "source": "person:candidate",
+      "target": "skill:grafana",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "55e95192-9bc1-4fce-b2f2-92d881814689",
+      "source": "person:candidate",
+      "target": "claim:b5f069bff74b",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "cdd8b1ac-963d-4fc9-ba2d-d921c64b3319",
+      "source": "person:candidate",
+      "target": "skill:github-actions",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "d016fe63-bc63-419d-9e94-8dba7713fc1d",
+      "source": "person:candidate",
+      "target": "claim:cfc21318ff71",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "3ccbfb0a-7180-4104-bde9-1fa55e2acf9a",
+      "source": "person:candidate",
+      "target": "claim:78dd592eb483",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "9c314cfe-2d38-4ac7-a244-8d64b3cecb7f",
+      "source": "person:candidate",
+      "target": "skill:kafka",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "f2385b8e-c72a-4c48-b520-ccd1463928b2",
+      "source": "person:candidate",
+      "target": "skill:microservices",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "d61a3015-92ab-4314-94ca-9a5e274d72a9",
+      "source": "person:candidate",
+      "target": "claim:8188a48f06ef",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "be3ad13c-6e7f-4cd4-a74a-7b7eb9bb427a",
+      "source": "person:candidate",
+      "target": "claim:cce29eea071a",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "3f7f3c35-1296-48b3-8f89-72a35952b9c8",
+      "source": "person:candidate",
+      "target": "claim:ff67eee62499",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "e3ae5a6b-17c4-4625-8889-e5dafd891bd2",
+      "source": "person:candidate",
+      "target": "claim:75945bc971fe",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "32bfd3da-9488-4fc6-a171-571250d11410",
+      "source": "person:candidate",
+      "target": "claim:fd6a9552a3b3",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "6a119fad-9036-4147-b8da-72d559eab61a",
+      "source": "person:candidate",
+      "target": "claim:b5066879e7b5",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "96b0fe8c-12ab-4554-b7f2-7842b17c36dd",
+      "source": "person:candidate",
+      "target": "claim:a4eec48aa029",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "8de7eae2-92c6-44c1-bc3e-70524477532c",
+      "source": "person:candidate",
+      "target": "claim:e1f74906364e",
+      "relation": "mentions",
+      "weight": 0.6
+    },
+    {
+      "id": "1df6e525-7b34-415b-882f-5d4d934091b9",
+      "source": "person:candidate",
+      "target": "claim:a15f259ff4c0",
+      "relation": "mentions",
+      "weight": 0.6
+    }
+  ]
+}

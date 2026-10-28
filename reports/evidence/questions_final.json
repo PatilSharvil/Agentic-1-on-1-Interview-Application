@@ -1,0 +1,72 @@
+[
+  {
+    "id": "6fe405dd-11d4-48e3-939c-a3ca13e3da16",
+    "text": "How did you architect the FastAPI payments API to handle 2M requests/day, and what scaling strategies did you employ?",
+    "source": "resume",
+    "parent_id": null,
+    "created_at": "2026-10-28T11:36:39"
+  },
+  {
+    "id": "a6134dc0-8b76-4e8a-b656-f058385474d2",
+    "text": "Can you walk through the Redis caching strategy you implemented for the payments API and explain how it reduced p95 latency?",
+    "source": "resume",
+    "parent_id": null,
+    "created_at": "2026-10-28T11:36:39"
+  },
+  {
+    "id": "3f226068-472e-4f58-9545-4cabc5209d31",
+    "text": "Describe the Terraform configuration you used to deploy the Kubernetes cluster on AWS EKS for Finlytics. What challenges did you face?",
+    "source": "resume",
+    "parent_id": null,
+    "created_at": "2026-10-28T11:36:39"
+  },
+  {
+    "id": "305d68b4-c3d9-4d7d-8e13-ab402ee12f61",
+    "text": "What was your role in designing the Kafka ingestion pipelines at DataHive, and how did you ensure reliability and fault tolerance?",
+    "source": "resume",
+    "parent_id": null,
+    "created_at": "2026-10-28T11:36:39"
+  },
+  {
+    "id": "d81e6662-ca8a-4f3b-b049-66a21d56b3c4",
+    "text": "Explain the multi-stage Docker build process you set up in GitHub Actions for DataHive. How did it improve build times or security?",
+    "source": "resume",
+    "parent_id": null,
+    "created_at": "2026-10-28T11:36:39"
+  },
+  {
+    "id": "690e582c-032d-4e0c-bf4c-131a85c772eb",
+    "text": "How did you instrument the FastAPI Payments API for observability, and what metrics did you expose to Grafana to monitor latency and error rates?",
+    "source": "adaptive",
+    "parent_id": "d81e6662-ca8a-4f3b-b049-66a21d56b3c4",
+    "created_at": "2026-10-28T11:36:59"
+  },
+  {
+    "id": "61430dcb-43f8-4125-92a0-9f8c05c13b2a",
+    "text": "How did you configure the Kubernetes HPA for the Celery workers to react to the P95 latency metric, and what thresholds did you set?",
+    "source": "adaptive",
+    "parent_id": "690e582c-032d-4e0c-bf4c-131a85c772eb",
+    "created_at": "2026-10-28T11:37:18"
+  },
+  {
+    "id": "ef80cb74-d4a1-46a3-b7fa-cbd397cc4817",
+    "text": "What were the specific configuration parameters you set for pgBouncer (pool size, timeout, etc.) to prevent connection pool exhaustion, and how did you validate their effectiveness?",
+    "source": "adaptive",
+    "parent_id": "61430dcb-43f8-4125-92a0-9f8c05c13b2a",
+    "created_at": "2026-10-28T11:37:38"
+  },
+  {
+    "id": "9b685f11-7e09-4814-9631-bfade3ca0235",
+    "text": "How did you configure Trivy to scan for vulnerabilities in your multi-stage Docker builds, and what remediation steps did you take when high\u2011severity findings were detected?",
+    "source": "adaptive",
+    "parent_id": "ef80cb74-d4a1-46a3-b7fa-cbd397cc4817",
+    "created_at": "2026-10-28T11:37:58"
+  },
+  {
+    "id": "4e4a7628-e867-47e4-b30e-324abe3db82f",
+    "text": "Can you describe how you implemented feature flags for the new payment endpoint, including the flag management tool you used and how you monitored its impact on traffic and error rates?",
+    "source": "adaptive",
+    "parent_id": "9b685f11-7e09-4814-9631-bfade3ca0235",
+    "created_at": "2026-10-28T11:38:18"
+  }
+]
